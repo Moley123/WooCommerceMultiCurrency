@@ -1,0 +1,146 @@
+/**
+ * Vignette Currency Converter - Frontend Styles
+ */
+
+/* Currency Selector Wrapper */
+.vcc-currency-selector-wrapper {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vcc-currency-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+    margin: 0;
+}
+
+.vcc-currency-selector {
+    padding: 8px 32px 8px 12px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23333" d="M1.41 0L6 4.59L10.59 0L12 1.41l-6 6l-6-6z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    min-width: 200px;
+    transition: border-color 0.2s ease;
+}
+
+.vcc-currency-selector:hover {
+    border-color: #999;
+}
+
+.vcc-currency-selector:focus {
+    outline: none;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.vcc-currency-selector:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.vcc-loading {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Converted Price Display */
+.vcc-converted-price {
+    font-weight: 600;
+    color: #2271b1;
+}
+
+/* Cart Currency Info */
+.vcc-currency-info th {
+    padding: 10px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .vcc-currency-selector-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .vcc-currency-selector {
+        width: 100%;
+        min-width: auto;
+    }
+}
+
+/* Archive/Shop Page Selector */
+.woocommerce-products-header + .vcc-currency-selector-wrapper,
+.archive .vcc-currency-selector-wrapper {
+    margin-bottom: 30px;
+}
+
+/* Product Page Specific Styles */
+.single-product .vcc-currency-selector-wrapper {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* Before Price Position */
+.summary .vcc-currency-selector-wrapper {
+    order: -1;
+    margin-bottom: 15px;
+}
+
+/* Loading Animation */
+@keyframes vcc-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.vcc-loading {
+    animation: vcc-pulse 1.5s ease-in-out infinite;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .vcc-currency-selector-wrapper {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    .vcc-currency-label {
+        color: #e0e0e0;
+    }
+
+    .vcc-currency-selector {
+        background-color: #333;
+        color: #e0e0e0;
+        border-color: #555;
+    }
+
+    .vcc-currency-selector:hover {
+        border-color: #777;
+    }
+
+    .vcc-loading {
+        color: #999;
+    }
+}
