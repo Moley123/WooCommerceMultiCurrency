@@ -99,12 +99,23 @@ class VCC_Frontend_Display {
         // Get selected currency
         $currency = $this->get_selected_currency();
 
-        // If GBP is selected, show original price
+        // Get product source currency and price
+        $source_currency = get_post_meta($product->get_id(), '_vcc_source_currency', true);
+        $source_price = get_post_meta($product->get_id(), '_vcc_source_price', true);
+
+        // If selected currency matches source currency, show original source price
+        if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
+            $symbol = $this->converter->get_currency_symbol($currency);
+            $formatted_price = $this->format_price($source_price, $symbol, $currency);
+            return '<span class="vcc-converted-price vcc-source-price" data-source-price="' . esc_attr($source_price) . '" data-currency="' . esc_attr($currency) . '">' . $formatted_price . '</span>';
+        }
+
+        // If GBP is selected, show WooCommerce price (already in GBP)
         if ($currency === 'GBP') {
             return $price_html;
         }
 
-        // Get product price in GBP
+        // Otherwise, convert GBP to selected currency
         $gbp_price = $product->get_price();
 
         if (empty($gbp_price)) {
@@ -135,13 +146,22 @@ class VCC_Frontend_Display {
         }
 
         $currency = $this->get_selected_currency();
+        $product = $cart_item['data'];
+
+        // Check if selected currency matches source currency
+        $source_currency = get_post_meta($product->get_id(), '_vcc_source_currency', true);
+        $source_price = get_post_meta($product->get_id(), '_vcc_source_price', true);
+
+        if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
+            $symbol = $this->converter->get_currency_symbol($currency);
+            return $this->format_price($source_price, $symbol, $currency);
+        }
 
         if ($currency === 'GBP') {
             return $price_html;
         }
 
         // Get product
-        $product = $cart_item['data'];
         $gbp_price = $product->get_price();
 
         if (empty($gbp_price)) {

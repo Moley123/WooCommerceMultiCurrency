@@ -30,10 +30,9 @@ class VCC_Currency_Converter {
     private function init_hooks() {
         // Add product meta boxes
         add_action('add_meta_boxes', array($this, 'add_product_meta_boxes'));
-        add_action('save_post_product', array($this, 'save_product_meta'));
 
-        // Update GBP price when source price changes
-        add_action('woocommerce_process_product_meta', array($this, 'update_gbp_price'));
+        // Save meta AND update prices - priority 20 runs AFTER WooCommerce (priority 10)
+        add_action('woocommerce_process_product_meta', array($this, 'save_and_update_product'), 20);
 
         // Add custom columns to product list
         add_filter('manage_edit-product_columns', array($this, 'add_product_columns'));
@@ -148,6 +147,18 @@ class VCC_Currency_Converter {
             }
         </style>
         <?php
+    }
+
+    /**
+     * Save product meta and update GBP price
+     * Called on woocommerce_process_product_meta with priority 20
+     */
+    public function save_and_update_product($post_id) {
+        // First, save the custom meta fields
+        $this->save_product_meta($post_id);
+
+        // Then, update the GBP price based on saved meta
+        $this->update_gbp_price($post_id);
     }
 
     /**
