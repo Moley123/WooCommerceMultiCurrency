@@ -3,9 +3,9 @@
  * Plugin Name: Vignette Currency Converter
  * Plugin URI: https://github.com/Moley123/WooCommerceMultiCurrency
  * Description: Multi-currency support for vignette products with ExchangeRate-API integration
- * Version: 1.0.0
- * Author: Your Name
- * Author URI: https://yoursite.com
+ * Version: 1.0.1
+ * Author: Mark Lebrett
+ * Author URI: https://marklebrett.co.uk
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: vignette-currency-converter
