@@ -103,11 +103,14 @@ class VCC_Frontend_Display {
         $source_currency = get_post_meta($product->get_id(), '_vcc_source_currency', true);
         $source_price = get_post_meta($product->get_id(), '_vcc_source_price', true);
 
-        // If selected currency matches source currency, show original source price
+        // If selected currency matches source currency, show source price with markup
         if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
+            // Apply markup to source price
+            $final_source_price = $this->converter->apply_markup($product->get_id(), $source_price);
+
             $symbol = $this->converter->get_currency_symbol($currency);
-            $formatted_price = $this->format_price($source_price, $symbol, $currency);
-            return '<span class="vcc-converted-price vcc-source-price" data-source-price="' . esc_attr($source_price) . '" data-currency="' . esc_attr($currency) . '">' . $formatted_price . '</span>';
+            $formatted_price = $this->format_price($final_source_price, $symbol, $currency);
+            return '<span class="vcc-converted-price vcc-source-price" data-source-price="' . esc_attr($final_source_price) . '" data-currency="' . esc_attr($currency) . '">' . $formatted_price . '</span>';
         }
 
         // If GBP is selected, show WooCommerce price (already in GBP)
@@ -153,8 +156,11 @@ class VCC_Frontend_Display {
         $source_price = get_post_meta($product->get_id(), '_vcc_source_price', true);
 
         if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
+            // Apply markup to source price
+            $final_source_price = $this->converter->apply_markup($product->get_id(), $source_price);
+
             $symbol = $this->converter->get_currency_symbol($currency);
-            return $this->format_price($source_price, $symbol, $currency);
+            return $this->format_price($final_source_price, $symbol, $currency);
         }
 
         if ($currency === 'GBP') {

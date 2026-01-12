@@ -88,6 +88,11 @@ class VCC_Admin_Settings {
         // Selector position
         $sanitized['selector_position'] = isset($input['selector_position']) ? sanitize_text_field($input['selector_position']) : 'before_add_to_cart';
 
+        // Markup settings
+        $sanitized['enable_markup'] = isset($input['enable_markup']) ? 'yes' : 'no';
+        $sanitized['default_markup_type'] = isset($input['default_markup_type']) ? sanitize_text_field($input['default_markup_type']) : 'percentage';
+        $sanitized['default_markup_value'] = isset($input['default_markup_value']) ? floatval($input['default_markup_value']) : 0;
+
         return $sanitized;
     }
 
@@ -292,6 +297,79 @@ class VCC_Admin_Settings {
                             </td>
                         </tr>
 
+                        <!-- Markup Settings -->
+                        <tr>
+                            <th colspan="2">
+                                <h2><?php _e('Markup Settings', 'vignette-currency-converter'); ?></h2>
+                            </th>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="enable_markup"><?php _e('Enable Markup', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        id="enable_markup"
+                                        name="vcc_settings[enable_markup]"
+                                        value="yes"
+                                        <?php checked($this->settings['enable_markup'] ?? 'no', 'yes'); ?>
+                                    />
+                                    <?php _e('Add markup to vignette prices', 'vignette-currency-converter'); ?>
+                                </label>
+                                <p class="description">
+                                    <?php _e('Apply a default markup to all products. Can be overridden per product.', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="default_markup_type"><?php _e('Default Markup Type', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <select id="default_markup_type" name="vcc_settings[default_markup_type]">
+                                    <option value="percentage" <?php selected($this->settings['default_markup_type'] ?? 'percentage', 'percentage'); ?>>
+                                        <?php _e('Percentage (%)', 'vignette-currency-converter'); ?>
+                                    </option>
+                                    <option value="fixed" <?php selected($this->settings['default_markup_type'] ?? '', 'fixed'); ?>>
+                                        <?php _e('Fixed Amount (£)', 'vignette-currency-converter'); ?>
+                                    </option>
+                                </select>
+                                <p class="description">
+                                    <?php _e('Choose whether to apply markup as a percentage or fixed amount.', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="default_markup_value"><?php _e('Default Markup Value', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <input
+                                    type="number"
+                                    id="default_markup_value"
+                                    name="vcc_settings[default_markup_value]"
+                                    value="<?php echo esc_attr($this->settings['default_markup_value'] ?? 0); ?>"
+                                    step="0.01"
+                                    min="0"
+                                    class="small-text"
+                                />
+                                <span id="vcc-markup-unit">
+                                    <?php
+                                    $markup_type = $this->settings['default_markup_type'] ?? 'percentage';
+                                    echo $markup_type === 'percentage' ? '%' : '£';
+                                    ?>
+                                </span>
+                                <p class="description">
+                                    <?php _e('Default markup value. Examples: 20 for 20% or 5.00 for £5.00', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
                         <!-- Bulk Actions -->
                         <tr>
                             <th colspan="2">
@@ -418,6 +496,12 @@ class VCC_Admin_Settings {
                         setTimeout(function() { $progress.hide(); }, 5000);
                     }
                 });
+            });
+
+            // Update markup unit when markup type changes
+            $('#default_markup_type').on('change', function() {
+                var unit = $(this).val() === 'percentage' ? '%' : '£';
+                $('#vcc-markup-unit').text(unit);
             });
         });
         </script>

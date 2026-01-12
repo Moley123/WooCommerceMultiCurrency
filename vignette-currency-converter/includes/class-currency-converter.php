@@ -104,6 +104,65 @@ class VCC_Currency_Converter {
                 </span>
             </p>
 
+            <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
+
+            <p>
+                <strong><?php _e('Markup Settings', 'vignette-currency-converter'); ?></strong>
+                <span class="description" style="display: block; margin-top: 5px;">
+                    <?php _e('Override global markup for this product', 'vignette-currency-converter'); ?>
+                </span>
+            </p>
+
+            <p>
+                <label>
+                    <input
+                        type="checkbox"
+                        name="vcc_use_custom_markup"
+                        id="vcc_use_custom_markup"
+                        value="yes"
+                        <?php checked(get_post_meta($post->ID, '_vcc_use_custom_markup', true), 'yes'); ?>
+                    />
+                    <?php _e('Use custom markup for this product', 'vignette-currency-converter'); ?>
+                </label>
+            </p>
+
+            <div id="vcc-custom-markup-fields" style="<?php echo get_post_meta($post->ID, '_vcc_use_custom_markup', true) === 'yes' ? '' : 'display:none;'; ?>">
+                <p>
+                    <label for="vcc_markup_type">
+                        <strong><?php _e('Markup Type', 'vignette-currency-converter'); ?></strong>
+                    </label>
+                    <select name="vcc_markup_type" id="vcc_markup_type" style="width: 100%;">
+                        <option value="percentage" <?php selected(get_post_meta($post->ID, '_vcc_markup_type', true) ?: 'percentage', 'percentage'); ?>>
+                            <?php _e('Percentage (%)', 'vignette-currency-converter'); ?>
+                        </option>
+                        <option value="fixed" <?php selected(get_post_meta($post->ID, '_vcc_markup_type', true), 'fixed'); ?>>
+                            <?php _e('Fixed Amount (in source currency)', 'vignette-currency-converter'); ?>
+                        </option>
+                    </select>
+                </p>
+
+                <p>
+                    <label for="vcc_markup_value">
+                        <strong><?php _e('Markup Value', 'vignette-currency-converter'); ?></strong>
+                    </label>
+                    <input
+                        type="number"
+                        name="vcc_markup_value"
+                        id="vcc_markup_value"
+                        value="<?php echo esc_attr(get_post_meta($post->ID, '_vcc_markup_value', true)); ?>"
+                        step="0.01"
+                        min="0"
+                        style="width: 100%;"
+                        placeholder="e.g., 20 for 20% or 5.00 for fixed"
+                    />
+                    <span class="description">
+                        <?php _e('Enter markup value (e.g., 20 for 20% or 5.00 for fixed amount)', 'vignette-currency-converter'); ?>
+                    </span>
+                </p>
+            </div>
+
+            <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
+
             <p>
                 <label>
                     <input
@@ -120,14 +179,34 @@ class VCC_Currency_Converter {
                 <p class="vcc-conversion-info">
                     <strong><?php _e('Current Conversion:', 'vignette-currency-converter'); ?></strong><br>
                     <?php
-                    $gbp_price = $this->convert_to_gbp($source_price, $source_currency);
+                    // Apply markup to source price
+                    $final_source_price = $this->apply_markup($post->ID, $source_price);
+                    $gbp_price = $this->convert_to_gbp($final_source_price, $source_currency);
+
                     if (!is_wp_error($gbp_price)) {
+                        // Show source price
                         echo sprintf(
-                            __('%s %s = £%s GBP', 'vignette-currency-converter'),
-                            esc_html($source_price),
-                            esc_html($source_currency),
-                            number_format($gbp_price, 2)
+                            __('Base: %s %s', 'vignette-currency-converter'),
+                            esc_html(number_format($source_price, 2)),
+                            esc_html($source_currency)
                         );
+
+                        // Show markup if applied
+                        if ($final_source_price != $source_price) {
+                            echo '<br>';
+                            echo sprintf(
+                                __('With Markup: %s %s', 'vignette-currency-converter'),
+                                esc_html(number_format($final_source_price, 2)),
+                                esc_html($source_currency)
+                            );
+                        }
+
+                        // Show GBP conversion
+                        echo '<br>';
+                        echo '<strong>' . sprintf(
+                            __('= £%s GBP', 'vignette-currency-converter'),
+                            number_format($gbp_price, 2)
+                        ) . '</strong>';
                     } else {
                         echo '<span style="color: red;">' . esc_html($gbp_price->get_error_message()) . '</span>';
                     }
@@ -146,6 +225,19 @@ class VCC_Currency_Converter {
                 margin-top: 15px;
             }
         </style>
+
+        <script>
+        jQuery(document).ready(function($) {
+            // Toggle custom markup fields
+            $('#vcc_use_custom_markup').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#vcc-custom-markup-fields').slideDown();
+                } else {
+                    $('#vcc-custom-markup-fields').slideUp();
+                }
+            });
+        });
+        </script>
         <?php
     }
 
@@ -191,6 +283,19 @@ class VCC_Currency_Converter {
             update_post_meta($post_id, '_vcc_source_price', $source_price);
         }
 
+        // Save markup settings
+        $use_custom_markup = isset($_POST['vcc_use_custom_markup']) ? 'yes' : 'no';
+        update_post_meta($post_id, '_vcc_use_custom_markup', $use_custom_markup);
+
+        if (isset($_POST['vcc_markup_type'])) {
+            update_post_meta($post_id, '_vcc_markup_type', sanitize_text_field($_POST['vcc_markup_type']));
+        }
+
+        if (isset($_POST['vcc_markup_value'])) {
+            $markup_value = floatval($_POST['vcc_markup_value']);
+            update_post_meta($post_id, '_vcc_markup_value', $markup_value);
+        }
+
         // Save auto-update setting
         $auto_update = isset($_POST['vcc_auto_update']) ? 'yes' : 'no';
         update_post_meta($post_id, '_vcc_auto_update', $auto_update);
@@ -208,8 +313,11 @@ class VCC_Currency_Converter {
             return;
         }
 
-        // Convert to GBP
-        $gbp_price = $this->convert_to_gbp($source_price, $source_currency);
+        // Apply markup to source price if enabled
+        $final_source_price = $this->apply_markup($post_id, $source_price);
+
+        // Convert to GBP (with markup already applied)
+        $gbp_price = $this->convert_to_gbp($final_source_price, $source_currency);
 
         if (!is_wp_error($gbp_price)) {
             // Update the regular price
@@ -217,7 +325,7 @@ class VCC_Currency_Converter {
             update_post_meta($post_id, '_price', $gbp_price);
 
             // Store conversion info
-            update_post_meta($post_id, '_vcc_last_conversion_rate', $gbp_price / $source_price);
+            update_post_meta($post_id, '_vcc_last_conversion_rate', $gbp_price / $final_source_price);
             update_post_meta($post_id, '_vcc_last_conversion_date', current_time('mysql'));
         }
     }
@@ -244,6 +352,49 @@ class VCC_Currency_Converter {
         }
 
         return $this->api->convert($amount, 'GBP', $to_currency);
+    }
+
+    /**
+     * Apply markup to source price
+     *
+     * @param int $post_id Product ID
+     * @param float $source_price Original source price
+     * @return float Price with markup applied
+     */
+    public function apply_markup($post_id, $source_price) {
+        $use_custom_markup = get_post_meta($post_id, '_vcc_use_custom_markup', true);
+
+        // Determine which markup settings to use
+        if ($use_custom_markup === 'yes') {
+            // Use per-product markup
+            $markup_type = get_post_meta($post_id, '_vcc_markup_type', true) ?: 'percentage';
+            $markup_value = floatval(get_post_meta($post_id, '_vcc_markup_value', true));
+        } else {
+            // Use global markup settings
+            $enable_markup = isset($this->settings['enable_markup']) ? $this->settings['enable_markup'] : 'no';
+
+            // If global markup is not enabled, return original price
+            if ($enable_markup !== 'yes') {
+                return $source_price;
+            }
+
+            $markup_type = isset($this->settings['default_markup_type']) ? $this->settings['default_markup_type'] : 'percentage';
+            $markup_value = isset($this->settings['default_markup_value']) ? floatval($this->settings['default_markup_value']) : 0;
+        }
+
+        // If markup value is 0, return original price
+        if ($markup_value <= 0) {
+            return $source_price;
+        }
+
+        // Apply markup based on type
+        if ($markup_type === 'percentage') {
+            // Apply percentage markup (e.g., 20% = multiply by 1.20)
+            return $source_price * (1 + ($markup_value / 100));
+        } else {
+            // Apply fixed amount markup (add to source price)
+            return $source_price + $markup_value;
+        }
     }
 
     /**

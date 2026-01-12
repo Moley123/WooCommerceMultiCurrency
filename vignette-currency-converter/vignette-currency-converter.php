@@ -97,6 +97,9 @@ class Vignette_Currency_Converter {
             'enabled_currencies' => array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY'),
             'cache_duration' => 12, // hours
             'show_currency_selector' => 'yes',
+            'enable_markup' => 'no',
+            'default_markup_type' => 'percentage',
+            'default_markup_value' => 0,
         );
 
         if (!get_option('vcc_settings')) {
@@ -152,6 +155,13 @@ class Vignette_Currency_Converter {
         }
     }
 }
+
+// Declare HPOS (High-Performance Order Storage) compatibility
+add_action('before_woocommerce_init', function() {
+    if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+    }
+});
 
 // Initialize the plugin
 function vcc_init() {
