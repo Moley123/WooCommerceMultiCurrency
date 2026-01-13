@@ -99,14 +99,24 @@ class VCC_Frontend_Display {
         // Get selected currency
         $currency = $this->get_selected_currency();
 
-        // Get product source currency and price
-        $source_currency = get_post_meta($product->get_id(), '_vcc_source_currency', true);
-        $source_price = get_post_meta($product->get_id(), '_vcc_source_price', true);
+        // Get product ID and check if it's a variation
+        $product_id = $product->get_id();
+        $parent_id = $product->get_parent_id(); // 0 for simple products, parent ID for variations
+
+        // For variations, get source currency from parent, source price from variation
+        if ($parent_id > 0) {
+            $source_currency = get_post_meta($parent_id, '_vcc_source_currency', true);
+            $source_price = get_post_meta($product_id, '_vcc_source_price', true);
+        } else {
+            // Simple product - both from same product
+            $source_currency = get_post_meta($product_id, '_vcc_source_currency', true);
+            $source_price = get_post_meta($product_id, '_vcc_source_price', true);
+        }
 
         // If selected currency matches source currency, show source price with markup
         if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
             // Apply markup to source price
-            $final_source_price = $this->converter->apply_markup($product->get_id(), $source_price);
+            $final_source_price = $this->converter->apply_markup($product_id, $source_price);
 
             $symbol = $this->converter->get_currency_symbol($currency);
             $formatted_price = $this->format_price($final_source_price, $symbol, $currency);
@@ -151,13 +161,24 @@ class VCC_Frontend_Display {
         $currency = $this->get_selected_currency();
         $product = $cart_item['data'];
 
-        // Check if selected currency matches source currency
-        $source_currency = get_post_meta($product->get_id(), '_vcc_source_currency', true);
-        $source_price = get_post_meta($product->get_id(), '_vcc_source_price', true);
+        // Get product ID and check if it's a variation
+        $product_id = $product->get_id();
+        $parent_id = $product->get_parent_id(); // 0 for simple products, parent ID for variations
 
+        // For variations, get source currency from parent, source price from variation
+        if ($parent_id > 0) {
+            $source_currency = get_post_meta($parent_id, '_vcc_source_currency', true);
+            $source_price = get_post_meta($product_id, '_vcc_source_price', true);
+        } else {
+            // Simple product - both from same product
+            $source_currency = get_post_meta($product_id, '_vcc_source_currency', true);
+            $source_price = get_post_meta($product_id, '_vcc_source_price', true);
+        }
+
+        // Check if selected currency matches source currency
         if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
             // Apply markup to source price
-            $final_source_price = $this->converter->apply_markup($product->get_id(), $source_price);
+            $final_source_price = $this->converter->apply_markup($product_id, $source_price);
 
             $symbol = $this->converter->get_currency_symbol($currency);
             return $this->format_price($final_source_price, $symbol, $currency);

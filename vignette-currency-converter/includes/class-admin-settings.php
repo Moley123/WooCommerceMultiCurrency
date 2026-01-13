@@ -556,7 +556,7 @@ class VCC_Admin_Settings {
     }
 
     /**
-     * AJAX: Update all prices
+     * AJAX: Update all prices (simple products and variations)
      */
     public function ajax_update_all_prices() {
         check_ajax_referer('vcc_admin_nonce', 'nonce');
@@ -566,8 +566,9 @@ class VCC_Admin_Settings {
         }
 
         $converter = VCC_Currency_Converter::get_instance();
+        $updated = 0;
 
-        // Get all products with source currency
+        // Update simple products with source currency
         $args = array(
             'post_type' => 'product',
             'posts_per_page' => -1,
@@ -580,14 +581,16 @@ class VCC_Admin_Settings {
         );
 
         $products = get_posts($args);
-        $updated = 0;
 
         foreach ($products as $product) {
             $source_currency = get_post_meta($product->ID, '_vcc_source_currency', true);
             $source_price = get_post_meta($product->ID, '_vcc_source_price', true);
 
+            // Only update simple products (variable products don't have source prices)
             if (!empty($source_currency) && !empty($source_price)) {
-                $gbp_price = $converter->convert_to_gbp($source_price, $source_currency);
+                // Apply markup
+                $final_source_price = $converter->apply_markup($product->ID, $source_price);
+                $gbp_price = $converter->convert_to_gbp($final_source_price, $source_currency);
 
                 if (!is_wp_error($gbp_price)) {
                     update_post_meta($product->ID, '_regular_price', $gbp_price);
@@ -598,9 +601,33 @@ class VCC_Admin_Settings {
             }
         }
 
+        // Update variations with source prices
+        $variation_args = array(
+            'post_type' => 'product_variation',
+            'posts_per_page' => -1,
+            'meta_query' => array(
+                array(
+                    'key' => '_vcc_source_price',
+                    'compare' => 'EXISTS',
+                ),
+            ),
+        );
+
+        $variations = get_posts($variation_args);
+
+        foreach ($variations as $variation) {
+            $source_price = get_post_meta($variation->ID, '_vcc_source_price', true);
+
+            if (!empty($source_price)) {
+                // Use the converter's variation update method (handles parent currency lookup)
+                $converter->update_variation_gbp_price($variation->ID);
+                $updated++;
+            }
+        }
+
         wp_send_json_success(array(
             'message' => sprintf(
-                __('Updated %d product(s) successfully', 'vignette-currency-converter'),
+                __('Updated %d product(s) and variation(s) successfully', 'vignette-currency-converter'),
                 $updated
             ),
         ));

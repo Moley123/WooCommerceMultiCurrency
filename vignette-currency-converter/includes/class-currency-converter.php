@@ -34,6 +34,10 @@ class VCC_Currency_Converter {
         // Save meta AND update prices - priority 20 runs AFTER WooCommerce (priority 10)
         add_action('woocommerce_process_product_meta', array($this, 'save_and_update_product'), 20);
 
+        // Variation hooks for variable products
+        add_action('woocommerce_variation_options_pricing', array($this, 'render_variation_fields'), 10, 3);
+        add_action('woocommerce_save_product_variation', array($this, 'save_variation_meta'), 10, 2);
+
         // Add custom columns to product list
         add_filter('manage_edit-product_columns', array($this, 'add_product_columns'));
         add_action('manage_product_posts_custom_column', array($this, 'render_product_columns'), 10, 2);
@@ -242,6 +246,224 @@ class VCC_Currency_Converter {
     }
 
     /**
+     * Render variation-specific currency fields
+     * Hooked to woocommerce_variation_options_pricing
+     */
+    public function render_variation_fields($loop, $variation_data, $variation) {
+        $variation_id = $variation->ID;
+        $parent_id = wp_get_post_parent_id($variation_id);
+
+        // Get parent's source currency
+        $parent_currency = get_post_meta($parent_id, '_vcc_source_currency', true);
+
+        // Get variation's source price
+        $variation_source_price = get_post_meta($variation_id, '_vcc_source_price', true);
+
+        // Get variation markup settings
+        $use_custom_markup = get_post_meta($variation_id, '_vcc_use_custom_markup', true);
+        $markup_type = get_post_meta($variation_id, '_vcc_markup_type', true) ?: 'percentage';
+        $markup_value = get_post_meta($variation_id, '_vcc_markup_value', true);
+
+        ?>
+        <div class="vcc-variation-fields" style="padding: 10px 12px; background: #f9f9f9; border: 1px solid #ddd; margin: 10px 0;">
+            <h4 style="margin-top: 0;"><?php _e('Vignette Currency Settings', 'vignette-currency-converter'); ?></h4>
+
+            <?php if (!empty($parent_currency)) : ?>
+                <p style="margin-bottom: 10px;">
+                    <strong><?php _e('Source Currency (from parent):', 'vignette-currency-converter'); ?></strong>
+                    <span style="display: inline-block; padding: 3px 8px; background: #2271b1; color: white; border-radius: 3px; font-size: 11px;">
+                        <?php echo esc_html($parent_currency); ?>
+                    </span>
+                </p>
+
+                <p class="form-row form-row-full">
+                    <label>
+                        <?php _e('Source Price', 'vignette-currency-converter'); ?>
+                        <input
+                            type="number"
+                            name="vcc_variation_source_price[<?php echo $loop; ?>]"
+                            value="<?php echo esc_attr($variation_source_price); ?>"
+                            step="0.01"
+                            min="0"
+                            placeholder="e.g., 15.00"
+                            style="width: 100%;"
+                        />
+                    </label>
+                    <span class="description">
+                        <?php printf(__('Price in %s (will be converted to GBP)', 'vignette-currency-converter'), esc_html($parent_currency)); ?>
+                    </span>
+                </p>
+
+                <p class="form-row form-row-full">
+                    <label>
+                        <input
+                            type="checkbox"
+                            name="vcc_variation_use_custom_markup[<?php echo $loop; ?>]"
+                            value="yes"
+                            class="vcc-variation-custom-markup-checkbox"
+                            data-loop="<?php echo $loop; ?>"
+                            <?php checked($use_custom_markup, 'yes'); ?>
+                        />
+                        <?php _e('Use custom markup for this variation', 'vignette-currency-converter'); ?>
+                    </label>
+                </p>
+
+                <div class="vcc-variation-markup-fields-<?php echo $loop; ?>" style="<?php echo $use_custom_markup === 'yes' ? '' : 'display:none;'; ?>">
+                    <p class="form-row form-row-first">
+                        <label>
+                            <?php _e('Markup Type', 'vignette-currency-converter'); ?>
+                            <select name="vcc_variation_markup_type[<?php echo $loop; ?>]" style="width: 100%;">
+                                <option value="percentage" <?php selected($markup_type, 'percentage'); ?>>
+                                    <?php _e('Percentage (%)', 'vignette-currency-converter'); ?>
+                                </option>
+                                <option value="fixed" <?php selected($markup_type, 'fixed'); ?>>
+                                    <?php _e('Fixed Amount', 'vignette-currency-converter'); ?>
+                                </option>
+                            </select>
+                        </label>
+                    </p>
+
+                    <p class="form-row form-row-last">
+                        <label>
+                            <?php _e('Markup Value', 'vignette-currency-converter'); ?>
+                            <input
+                                type="number"
+                                name="vcc_variation_markup_value[<?php echo $loop; ?>]"
+                                value="<?php echo esc_attr($markup_value); ?>"
+                                step="0.01"
+                                min="0"
+                                placeholder="e.g., 20"
+                                style="width: 100%;"
+                            />
+                        </label>
+                    </p>
+                </div>
+
+                <?php if (!empty($variation_source_price)) :
+                    // Calculate preview
+                    $final_price = $this->apply_markup($variation_id, $variation_source_price);
+                    $gbp_price = $this->convert_to_gbp($final_price, $parent_currency);
+
+                    if (!is_wp_error($gbp_price)) :
+                ?>
+                    <p class="form-row form-row-full" style="background: #fff; padding: 8px; border-left: 3px solid #2271b1; margin-top: 10px;">
+                        <strong><?php _e('Preview:', 'vignette-currency-converter'); ?></strong><br>
+                        <?php
+                        echo esc_html($parent_currency) . ' ' . number_format($variation_source_price, 2);
+
+                        if ($final_price != $variation_source_price) {
+                            echo ' + markup = ' . esc_html($parent_currency) . ' ' . number_format($final_price, 2);
+                        }
+
+                        echo ' → <strong>£' . number_format($gbp_price, 2) . ' GBP</strong>';
+                        ?>
+                    </p>
+                <?php
+                    endif;
+                endif;
+                ?>
+
+            <?php else : ?>
+                <p style="color: #666; font-style: italic;">
+                    <?php _e('Please set a Source Currency on the parent product first.', 'vignette-currency-converter'); ?>
+                </p>
+            <?php endif; ?>
+        </div>
+
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            $('.vcc-variation-custom-markup-checkbox').on('change', function() {
+                var loop = $(this).data('loop');
+                var $fields = $('.vcc-variation-markup-fields-' + loop);
+
+                if ($(this).is(':checked')) {
+                    $fields.slideDown();
+                } else {
+                    $fields.slideUp();
+                }
+            });
+        });
+        </script>
+        <?php
+    }
+
+    /**
+     * Save variation meta data
+     * Hooked to woocommerce_save_product_variation
+     */
+    public function save_variation_meta($variation_id, $i) {
+        // Save variation source price
+        if (isset($_POST['vcc_variation_source_price'][$i])) {
+            $source_price = floatval($_POST['vcc_variation_source_price'][$i]);
+            update_post_meta($variation_id, '_vcc_source_price', $source_price);
+        }
+
+        // Save variation markup settings
+        $use_custom_markup = isset($_POST['vcc_variation_use_custom_markup'][$i]) ? 'yes' : 'no';
+        update_post_meta($variation_id, '_vcc_use_custom_markup', $use_custom_markup);
+
+        if (isset($_POST['vcc_variation_markup_type'][$i])) {
+            update_post_meta($variation_id, '_vcc_markup_type', sanitize_text_field($_POST['vcc_variation_markup_type'][$i]));
+        }
+
+        if (isset($_POST['vcc_variation_markup_value'][$i])) {
+            $markup_value = floatval($_POST['vcc_variation_markup_value'][$i]);
+            update_post_meta($variation_id, '_vcc_markup_value', $markup_value);
+        }
+
+        // Update variation GBP price
+        $this->update_variation_gbp_price($variation_id);
+    }
+
+    /**
+     * Update variation GBP price based on source price and parent currency
+     */
+    public function update_variation_gbp_price($variation_id) {
+        // Get source price from variation
+        $source_price = get_post_meta($variation_id, '_vcc_source_price', true);
+
+        if (empty($source_price)) {
+            return;
+        }
+
+        // Get source currency from parent product
+        $variation = wc_get_product($variation_id);
+        if (!$variation) {
+            return;
+        }
+
+        $parent_id = $variation->get_parent_id();
+        if (!$parent_id) {
+            return;
+        }
+
+        $source_currency = get_post_meta($parent_id, '_vcc_source_currency', true);
+
+        if (empty($source_currency)) {
+            return;
+        }
+
+        // Apply markup (checks variation, then parent, then global)
+        $final_source_price = $this->apply_markup($variation_id, $source_price);
+
+        // Convert to GBP
+        $gbp_price = $this->convert_to_gbp($final_source_price, $source_currency);
+
+        if (!is_wp_error($gbp_price)) {
+            // Update variation prices
+            update_post_meta($variation_id, '_regular_price', $gbp_price);
+            update_post_meta($variation_id, '_price', $gbp_price);
+
+            // Store conversion info
+            update_post_meta($variation_id, '_vcc_last_conversion_rate', $gbp_price / $final_source_price);
+            update_post_meta($variation_id, '_vcc_last_conversion_date', current_time('mysql'));
+
+            // Sync variation price with parent
+            WC_Product_Variable::sync($parent_id);
+        }
+    }
+
+    /**
      * Save product meta and update GBP price
      * Called on woocommerce_process_product_meta with priority 20
      */
@@ -356,30 +578,42 @@ class VCC_Currency_Converter {
 
     /**
      * Apply markup to source price
+     * Priority: Variation custom markup > Parent product markup > Global markup
      *
-     * @param int $post_id Product ID
+     * @param int $post_id Product or Variation ID
      * @param float $source_price Original source price
      * @return float Price with markup applied
      */
     public function apply_markup($post_id, $source_price) {
+        $parent_id = 0;
+
+        // Check if this is a variation
+        $product = wc_get_product($post_id);
+        if ($product && $product->get_parent_id() > 0) {
+            $parent_id = $product->get_parent_id();
+        }
+
+        // Priority 1: Check variation/product custom markup
         $use_custom_markup = get_post_meta($post_id, '_vcc_use_custom_markup', true);
 
-        // Determine which markup settings to use
         if ($use_custom_markup === 'yes') {
-            // Use per-product markup
+            // Use variation/product-specific markup
             $markup_type = get_post_meta($post_id, '_vcc_markup_type', true) ?: 'percentage';
             $markup_value = floatval(get_post_meta($post_id, '_vcc_markup_value', true));
-        } else {
-            // Use global markup settings
-            $enable_markup = isset($this->settings['enable_markup']) ? $this->settings['enable_markup'] : 'no';
+        } elseif ($parent_id > 0) {
+            // Priority 2: For variations, check parent product markup
+            $parent_custom_markup = get_post_meta($parent_id, '_vcc_use_custom_markup', true);
 
-            // If global markup is not enabled, return original price
-            if ($enable_markup !== 'yes') {
-                return $source_price;
+            if ($parent_custom_markup === 'yes') {
+                $markup_type = get_post_meta($parent_id, '_vcc_markup_type', true) ?: 'percentage';
+                $markup_value = floatval(get_post_meta($parent_id, '_vcc_markup_value', true));
+            } else {
+                // Priority 3: Fall back to global markup
+                return $this->apply_global_markup($source_price);
             }
-
-            $markup_type = isset($this->settings['default_markup_type']) ? $this->settings['default_markup_type'] : 'percentage';
-            $markup_value = isset($this->settings['default_markup_value']) ? floatval($this->settings['default_markup_value']) : 0;
+        } else {
+            // Priority 3: Simple product without custom markup - use global
+            return $this->apply_global_markup($source_price);
         }
 
         // If markup value is 0, return original price
@@ -393,6 +627,37 @@ class VCC_Currency_Converter {
             return $source_price * (1 + ($markup_value / 100));
         } else {
             // Apply fixed amount markup (add to source price)
+            return $source_price + $markup_value;
+        }
+    }
+
+    /**
+     * Apply global markup settings
+     *
+     * @param float $source_price Original source price
+     * @return float Price with global markup applied
+     */
+    private function apply_global_markup($source_price) {
+        // Use global markup settings
+        $enable_markup = isset($this->settings['enable_markup']) ? $this->settings['enable_markup'] : 'no';
+
+        // If global markup is not enabled, return original price
+        if ($enable_markup !== 'yes') {
+            return $source_price;
+        }
+
+        $markup_type = isset($this->settings['default_markup_type']) ? $this->settings['default_markup_type'] : 'percentage';
+        $markup_value = isset($this->settings['default_markup_value']) ? floatval($this->settings['default_markup_value']) : 0;
+
+        // If markup value is 0, return original price
+        if ($markup_value <= 0) {
+            return $source_price;
+        }
+
+        // Apply markup based on type
+        if ($markup_type === 'percentage') {
+            return $source_price * (1 + ($markup_value / 100));
+        } else {
             return $source_price + $markup_value;
         }
     }
