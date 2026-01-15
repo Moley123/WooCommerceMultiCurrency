@@ -138,9 +138,49 @@ class Vignette_Currency_Converter {
                 true
             );
 
+            // Get instances
+            $frontend = VCC_Frontend_Display::get_instance();
+            $converter = VCC_Currency_Converter::get_instance();
+
+            // Get current currency
+            $current_currency = $frontend->get_selected_currency();
+
+            // Get all exchange rates
+            $rates = $converter->get_all_exchange_rates('GBP');
+
+            // Get currency symbols
+            $enabled_currencies = $converter->get_available_currencies();
+            $symbols = array();
+            foreach ($enabled_currencies as $currency) {
+                $symbols[$currency] = $converter->get_currency_symbol($currency);
+            }
+
+            // Get product data for current page
+            $products = array();
+            if (is_product()) {
+                global $product;
+                if ($product) {
+                    $product_id = $product->get_id();
+                    $products[$product_id] = $converter->get_product_currency_data($product_id);
+
+                    // If variable product, get variation data
+                    if ($product->is_type('variable')) {
+                        $variations = $product->get_children();
+                        foreach ($variations as $variation_id) {
+                            $products[$variation_id] = $converter->get_product_currency_data($variation_id);
+                        }
+                    }
+                }
+            }
+
             wp_localize_script('vcc-currency-selector', 'vccData', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('vcc_currency_switch'),
+                'current_currency' => $current_currency,
+                'rates' => $rates,
+                'symbols' => $symbols,
+                'products' => $products,
+                'debug' => defined('WP_DEBUG') && WP_DEBUG,
             ));
         }
     }

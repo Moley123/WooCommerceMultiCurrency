@@ -278,6 +278,7 @@ class VCC_Frontend_Display {
         check_ajax_referer('vcc_currency_switch', 'nonce');
 
         $currency = isset($_POST['currency']) ? sanitize_text_field($_POST['currency']) : 'GBP';
+        $manual_override = isset($_POST['manual_override']) && $_POST['manual_override'] === 'true';
 
         // Validate currency
         $available_currencies = $this->converter->get_available_currencies();
@@ -290,11 +291,20 @@ class VCC_Frontend_Display {
         $_SESSION['vcc_selected_currency'] = $currency;
         setcookie('vcc_selected_currency', $currency, time() + (86400 * 30), '/'); // 30 days
 
+        // If this is a manual override, store flag in session (not cookie)
+        // This tells auto-detection to respect user's choice for this session
+        if ($manual_override) {
+            $_SESSION['vcc_manual_override'] = true;
+        } else {
+            unset($_SESSION['vcc_manual_override']);
+        }
+
         $this->selected_currency = $currency;
 
         wp_send_json_success(array(
             'message' => __('Currency updated', 'vignette-currency-converter'),
             'currency' => $currency,
+            'manual_override' => $manual_override,
         ));
     }
 
