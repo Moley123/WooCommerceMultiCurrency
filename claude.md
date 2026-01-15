@@ -5,9 +5,9 @@
 A custom WordPress/WooCommerce plugin designed for a vignette reseller business that handles multi-currency conversion with markup support. The plugin converts vignette prices from various source currencies (CHF, EUR, etc.) to GBP (base shop currency) and allows customers to view prices in their preferred currency.
 
 **Plugin Name:** Vignette Currency Converter
-**Version:** 1.0.2
+**Version:** 1.1.0
 **Base Currency:** GBP (British Pounds)
-**API:** ExchangeRate-API (free tier)
+**APIs:** ExchangeRate-API (exchange rates), ipapi.co (geolocation)
 
 ## Business Context
 
@@ -61,10 +61,13 @@ vignette-currency-converter/
 │   ├── class-currency-api.php         # ExchangeRate-API integration
 │   ├── class-currency-converter.php   # Core conversion logic & product integration
 │   ├── class-frontend-display.php     # Customer-facing UI (currency selector)
-│   └── class-admin-settings.php       # Admin settings page
+│   ├── class-admin-settings.php       # Admin settings page
+│   └── class-geolocation.php          # IP geolocation & auto-detection (NEW in 1.1.0)
 └── assets/
-    └── css/
-        └── admin.css                   # Admin styling
+    ├── css/
+    │   └── admin.css                   # Admin styling
+    └── js/
+        └── currency-selector.js        # Frontend instant currency switching (v1.1.0)
 ```
 
 ## Key Features
@@ -92,6 +95,28 @@ vignette-currency-converter/
 
 ### 5. HPOS Compatibility
 - Declared compatible with WooCommerce High-Performance Order Storage (8.2+)
+
+### 6. Instant Currency Switching (v1.1.0)
+- **No Page Reload:** Currency changes happen instantly (< 100ms)
+- **JavaScript Price Updates:** DOM manipulation for seamless UX
+- **Pre-loaded Rates:** Exchange rates loaded on page for offline calculation
+- **Async Session Update:** Fire-and-forget, non-blocking
+- **Event System:** Dual jQuery + Native DOM events for external plugin compatibility
+
+### 7. Auto-Detection (v1.1.0)
+- **IP Geolocation:** Automatic currency detection via ipapi.co (free 1K/day)
+- **Country Mapping:** 50+ countries mapped to currencies
+- **24-Hour Caching:** Country detection cached per IP
+- **Manual Override:** User manual selection takes priority for session
+- **Fallback Chain:** Session → IP → Default GBP
+- **Hide Selector Option:** Optional seamless UX without dropdown
+
+### 8. External Plugin Integration (v1.1.0)
+- **Public API Methods:** `get_public_exchange_rate()`, `get_all_exchange_rates()`
+- **JavaScript Events:** `vcc_currency_changed` event with full context
+- **Filter Hooks:** 7 hooks for customization and integration
+- **WCEPO Compatibility:** Built for WooCommerce Extra Product Options integration
+- **Global Access:** `window.VCC` and `$.VCC` exposed for external plugins
 
 ## File Details
 
