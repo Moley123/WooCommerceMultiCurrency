@@ -159,7 +159,13 @@ class Vignette_Currency_Converter {
             $products = array();
             if (is_product()) {
                 global $product;
-                if ($product) {
+
+                // Ensure we have a valid WC_Product object
+                if (!is_a($product, 'WC_Product')) {
+                    $product = wc_get_product(get_the_ID());
+                }
+
+                if ($product && is_a($product, 'WC_Product')) {
                     $product_id = $product->get_id();
                     $products[$product_id] = $converter->get_product_currency_data($product_id);
 
