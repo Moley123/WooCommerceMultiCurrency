@@ -140,6 +140,9 @@ class VCC_Frontend_Display {
             $source_price = get_post_meta($product_id, '_vcc_source_price', true);
         }
 
+        // Get GBP price for data attributes
+        $gbp_price = $product->get_price();
+
         // If selected currency matches source currency, show source price with markup
         if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
             // Apply markup to source price
@@ -147,17 +150,37 @@ class VCC_Frontend_Display {
 
             $symbol = $this->converter->get_currency_symbol($currency);
             $formatted_price = $this->format_price($final_source_price, $symbol, $currency);
-            return '<span class="vcc-converted-price vcc-source-price" data-source-price="' . esc_attr($final_source_price) . '" data-currency="' . esc_attr($currency) . '">' . $formatted_price . '</span>';
+
+            // Include all data attributes for JavaScript
+            return '<span class="vcc-converted-price vcc-source-price" ' .
+                'data-product-id="' . esc_attr($product_id) . '" ' .
+                'data-source-currency="' . esc_attr($source_currency) . '" ' .
+                'data-source-price="' . esc_attr($source_price) . '" ' .
+                'data-gbp-price="' . esc_attr($gbp_price) . '" ' .
+                'data-currency="' . esc_attr($currency) . '">' .
+                $formatted_price . '</span>';
         }
 
-        // If GBP is selected, show WooCommerce price (already in GBP)
+        // If GBP is selected, wrap in span with data attributes for instant switching
         if ($currency === 'GBP') {
-            return $price_html;
+            // Extract price value from HTML
+            if (empty($gbp_price)) {
+                return $price_html;
+            }
+
+            $symbol = $this->converter->get_currency_symbol('GBP');
+            $formatted_price = $this->format_price($gbp_price, $symbol, 'GBP');
+
+            return '<span class="vcc-converted-price" ' .
+                'data-product-id="' . esc_attr($product_id) . '" ' .
+                'data-source-currency="' . esc_attr($source_currency ?: '') . '" ' .
+                'data-source-price="' . esc_attr($source_price ?: '') . '" ' .
+                'data-gbp-price="' . esc_attr($gbp_price) . '" ' .
+                'data-currency="GBP">' .
+                $formatted_price . '</span>';
         }
 
         // Otherwise, convert GBP to selected currency
-        $gbp_price = $product->get_price();
-
         if (empty($gbp_price)) {
             return $price_html;
         }
@@ -173,7 +196,14 @@ class VCC_Frontend_Display {
         $symbol = $this->converter->get_currency_symbol($currency);
         $formatted_price = $this->format_price($converted_price, $symbol, $currency);
 
-        return '<span class="vcc-converted-price" data-gbp-price="' . esc_attr($gbp_price) . '" data-currency="' . esc_attr($currency) . '">' . $formatted_price . '</span>';
+        // Include all data attributes for JavaScript
+        return '<span class="vcc-converted-price" ' .
+            'data-product-id="' . esc_attr($product_id) . '" ' .
+            'data-source-currency="' . esc_attr($source_currency ?: '') . '" ' .
+            'data-source-price="' . esc_attr($source_price ?: '') . '" ' .
+            'data-gbp-price="' . esc_attr($gbp_price) . '" ' .
+            'data-currency="' . esc_attr($currency) . '">' .
+            $formatted_price . '</span>';
     }
 
     /**
@@ -202,22 +232,45 @@ class VCC_Frontend_Display {
             $source_price = get_post_meta($product_id, '_vcc_source_price', true);
         }
 
+        // Get GBP price for data attributes
+        $gbp_price = $product->get_price();
+
         // Check if selected currency matches source currency
         if (!empty($source_currency) && !empty($source_price) && $currency === $source_currency) {
             // Apply markup to source price
             $final_source_price = $this->converter->apply_markup($product_id, $source_price);
 
             $symbol = $this->converter->get_currency_symbol($currency);
-            return $this->format_price($final_source_price, $symbol, $currency);
+            $formatted_price = $this->format_price($final_source_price, $symbol, $currency);
+
+            // Include all data attributes for JavaScript
+            return '<span class="vcc-converted-price vcc-cart-price" ' .
+                'data-product-id="' . esc_attr($product_id) . '" ' .
+                'data-source-currency="' . esc_attr($source_currency) . '" ' .
+                'data-source-price="' . esc_attr($source_price) . '" ' .
+                'data-gbp-price="' . esc_attr($gbp_price) . '" ' .
+                'data-currency="' . esc_attr($currency) . '">' .
+                $formatted_price . '</span>';
         }
 
         if ($currency === 'GBP') {
-            return $price_html;
+            if (empty($gbp_price)) {
+                return $price_html;
+            }
+
+            $symbol = $this->converter->get_currency_symbol('GBP');
+            $formatted_price = $this->format_price($gbp_price, $symbol, 'GBP');
+
+            return '<span class="vcc-converted-price vcc-cart-price" ' .
+                'data-product-id="' . esc_attr($product_id) . '" ' .
+                'data-source-currency="' . esc_attr($source_currency ?: '') . '" ' .
+                'data-source-price="' . esc_attr($source_price ?: '') . '" ' .
+                'data-gbp-price="' . esc_attr($gbp_price) . '" ' .
+                'data-currency="GBP">' .
+                $formatted_price . '</span>';
         }
 
         // Get product
-        $gbp_price = $product->get_price();
-
         if (empty($gbp_price)) {
             return $price_html;
         }
@@ -230,7 +283,16 @@ class VCC_Frontend_Display {
         }
 
         $symbol = $this->converter->get_currency_symbol($currency);
-        return $this->format_price($converted_price, $symbol, $currency);
+        $formatted_price = $this->format_price($converted_price, $symbol, $currency);
+
+        // Include all data attributes for JavaScript
+        return '<span class="vcc-converted-price vcc-cart-price" ' .
+            'data-product-id="' . esc_attr($product_id) . '" ' .
+            'data-source-currency="' . esc_attr($source_currency ?: '') . '" ' .
+            'data-source-price="' . esc_attr($source_price ?: '') . '" ' .
+            'data-gbp-price="' . esc_attr($gbp_price) . '" ' .
+            'data-currency="' . esc_attr($currency) . '">' .
+            $formatted_price . '</span>';
     }
 
     /**
