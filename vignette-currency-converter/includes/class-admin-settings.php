@@ -79,6 +79,11 @@ class VCC_Admin_Settings {
             ? array_map('sanitize_text_field', $input['enabled_currencies'])
             : array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY');
 
+        // Ensure GBP is always included (it's the base currency)
+        if (!in_array('GBP', $sanitized['enabled_currencies'])) {
+            $sanitized['enabled_currencies'][] = 'GBP';
+        }
+
         // Cache duration
         $sanitized['cache_duration'] = isset($input['cache_duration']) ? intval($input['cache_duration']) : 12;
 
@@ -201,6 +206,11 @@ class VCC_Admin_Settings {
                                 <?php
                                 $available_currencies = array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY');
                                 $enabled_currencies = $this->settings['enabled_currencies'] ?? array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY');
+
+                                // Hidden input to ensure GBP is always included (disabled checkboxes don't submit)
+                                ?>
+                                <input type="hidden" name="vcc_settings[enabled_currencies][]" value="GBP" />
+                                <?php
 
                                 foreach ($available_currencies as $currency) {
                                     $checked = in_array($currency, $enabled_currencies);
