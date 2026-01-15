@@ -45,6 +45,7 @@ require_once VCC_PLUGIN_DIR . 'includes/class-currency-api.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-currency-converter.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-admin-settings.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-frontend-display.php';
+require_once VCC_PLUGIN_DIR . 'includes/class-geolocation.php';
 
 /**
  * Main plugin class

@@ -730,4 +730,90 @@ class VCC_Currency_Converter {
 
         return isset($symbols[$currency]) ? $symbols[$currency] : $currency;
     }
+
+    /**
+     * Get exchange rate (public API for external plugins like WCEPO)
+     *
+     * @param string $from Source currency code
+     * @param string $to Target currency code
+     * @return float|WP_Error Exchange rate or error
+     */
+    public function get_public_exchange_rate($from, $to) {
+        // Allow filtering/overriding for external plugins
+        $rate = apply_filters('vcc_get_exchange_rate', null, $from, $to);
+
+        if (null !== $rate) {
+            return $rate;
+        }
+
+        // Use internal API
+        return $this->api->get_exchange_rate($from, $to);
+    }
+
+    /**
+     * Get all exchange rates for enabled currencies (for JavaScript)
+     *
+     * @param string $base_currency Base currency (default: GBP)
+     * @return array Array of exchange rates [ 'EUR' => 1.17, 'USD' => 1.25, ... ]
+     */
+    public function get_all_exchange_rates($base_currency = 'GBP') {
+        $enabled_currencies = $this->get_available_currencies();
+        $rates = array();
+
+        foreach ($enabled_currencies as $currency) {
+            if ($currency === $base_currency) {
+                $rates[$currency] = 1.0;
+                continue;
+            }
+
+            $rate = $this->api->get_exchange_rate($base_currency, $currency);
+
+            if (!is_wp_error($rate)) {
+                $rates[$currency] = $rate;
+            }
+        }
+
+        // Allow filtering for external plugins
+        return apply_filters('vcc_all_exchange_rates', $rates, $base_currency);
+    }
+
+    /**
+     * Get product data for JavaScript (source price, markup, currency)
+     *
+     * @param int $product_id Product or variation ID
+     * @return array Product currency data
+     */
+    public function get_product_currency_data($product_id) {
+        $product = wc_get_product($product_id);
+
+        if (!$product) {
+            return array();
+        }
+
+        $parent_id = $product->get_parent_id();
+
+        // For variations, get currency from parent, price from variation
+        if ($parent_id > 0) {
+            $source_currency = get_post_meta($parent_id, '_vcc_source_currency', true);
+            $source_price = get_post_meta($product_id, '_vcc_source_price', true);
+        } else {
+            $source_currency = get_post_meta($product_id, '_vcc_source_currency', true);
+            $source_price = get_post_meta($product_id, '_vcc_source_price', true);
+        }
+
+        $data = array(
+            'product_id' => $product_id,
+            'source_currency' => $source_currency,
+            'source_price' => floatval($source_price),
+            'gbp_price' => floatval($product->get_price()),
+            'has_markup' => get_post_meta($product_id, '_vcc_use_custom_markup', true) === 'yes',
+        );
+
+        // Apply markup if needed
+        if (!empty($source_price)) {
+            $data['source_price_with_markup'] = $this->apply_markup($product_id, $source_price);
+        }
+
+        return apply_filters('vcc_product_currency_data', $data, $product_id);
+    }
 }
