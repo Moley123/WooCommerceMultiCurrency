@@ -68,12 +68,40 @@
          */
         updateAllPrices: function(currency) {
             var self = this;
+            var debug = this.debug || (typeof vccData !== 'undefined' && vccData.debug);
 
-            // Update all converted price elements
-            $('.vcc-converted-price').each(function() {
+            if (debug) {
+                console.log('[VCC Debug] updateAllPrices called with currency:', currency);
+                console.log('[VCC Debug] Looking for elements with .vcc-converted-price');
+            }
+
+            // Update all converted price elements (our wrapper)
+            var $elements = $('.vcc-converted-price');
+
+            if (debug) {
+                console.log('[VCC Debug] Elements found:', $elements.length);
+            }
+
+            $elements.each(function() {
                 var $element = $(this);
                 self.updatePriceElement($element, currency);
             });
+
+            // FALLBACK: Update WCEPO-wrapped prices if our wrapper isn't present
+            if ($elements.length === 0) {
+                if (debug) {
+                    console.log('[VCC Debug] No .vcc-converted-price elements found, using WCEPO fallback');
+                }
+
+                $('.wcepo-price-wrapper .woocommerce-Price-amount, .price .woocommerce-Price-amount').each(function() {
+                    var $element = $(this);
+
+                    // Only update if not already wrapped by our class
+                    if (!$element.closest('.vcc-converted-price').length) {
+                        self.wrapAndUpdateWCEPOPrice($element, currency);
+                    }
+                });
+            }
 
             // Update WooCommerce variation prices if on product page
             this.updateVariationPrices(currency);
@@ -157,6 +185,86 @@
                     self.updatePriceElement($priceElement, currency);
                 }
             });
+        },
+
+        /**
+         * Wrap and update WCEPO price elements that weren't caught by our filter
+         * This is a fallback for when WCEPO or other plugins override our price HTML
+         */
+        wrapAndUpdateWCEPOPrice: function($priceElement, currency) {
+            var debug = this.debug || (typeof vccData !== 'undefined' && vccData.debug);
+
+            // Get product ID from page context
+            var productId = null;
+            if (typeof this.products === 'object' && Object.keys(this.products).length > 0) {
+                // Use first product ID from products object
+                productId = Object.keys(this.products)[0];
+            }
+
+            if (!productId || !this.products[productId]) {
+                if (debug) {
+                    console.warn('[VCC] No product data available for WCEPO price update');
+                }
+                return;
+            }
+
+            var productData = this.products[productId];
+
+            // Get price data
+            var gbpPrice = productData.gbp_price;
+            var sourceCurrency = productData.source_currency;
+            var sourcePrice = productData.source_price;
+
+            if (debug) {
+                console.log('[VCC Debug] WCEPO fallback - Product data:', productData);
+                console.log('[VCC Debug] GBP price:', gbpPrice, 'Source:', sourceCurrency, sourcePrice);
+            }
+
+            // Calculate new price
+            var newPrice, formattedPrice;
+
+            if (sourceCurrency && sourceCurrency === currency && sourcePrice) {
+                var sourcePriceWithMarkup = productData.source_price_with_markup || sourcePrice;
+                newPrice = sourcePriceWithMarkup;
+                if (debug) {
+                    console.log('[VCC Debug] Using source price with markup:', newPrice);
+                }
+            } else if (currency === 'GBP') {
+                newPrice = gbpPrice;
+                if (debug) {
+                    console.log('[VCC Debug] Using GBP price:', newPrice);
+                }
+            } else if (this.rates[currency]) {
+                newPrice = gbpPrice * this.rates[currency];
+                if (debug) {
+                    console.log('[VCC Debug] Converting from GBP:', gbpPrice, 'x', this.rates[currency], '=', newPrice);
+                }
+            } else {
+                if (debug) {
+                    console.warn('[VCC Debug] Cannot calculate price - missing rate for', currency);
+                }
+                return; // Can't calculate, skip update
+            }
+
+            formattedPrice = this.formatPrice(newPrice, currency);
+
+            if (debug) {
+                console.log('[VCC Debug] Formatted price:', formattedPrice);
+            }
+
+            // Update the inner text (the <bdi> tag contains just the price)
+            var $bdi = $priceElement.find('bdi');
+            if ($bdi.length) {
+                $bdi.text(formattedPrice);
+                if (debug) {
+                    console.log('[VCC Debug] Updated <bdi> element');
+                }
+            } else {
+                $priceElement.html(formattedPrice);
+                if (debug) {
+                    console.log('[VCC Debug] Updated element HTML directly');
+                }
+            }
         },
 
         /**

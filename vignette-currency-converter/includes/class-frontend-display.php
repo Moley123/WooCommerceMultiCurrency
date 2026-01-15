@@ -31,9 +31,10 @@ class VCC_Frontend_Display {
 
     private function init_hooks() {
         // Modify WooCommerce price display
-        add_filter('woocommerce_get_price_html', array($this, 'modify_price_display'), 10, 2);
-        add_filter('woocommerce_cart_item_price', array($this, 'modify_cart_price'), 10, 3);
-        add_filter('woocommerce_cart_item_subtotal', array($this, 'modify_cart_price'), 10, 3);
+        // Priority 999 ensures we run AFTER other plugins (like WCEPO) so our wrapper stays on the outside
+        add_filter('woocommerce_get_price_html', array($this, 'modify_price_display'), 999, 2);
+        add_filter('woocommerce_cart_item_price', array($this, 'modify_cart_price'), 999, 3);
+        add_filter('woocommerce_cart_item_subtotal', array($this, 'modify_cart_price'), 999, 3);
 
         // Add currency selector
         $position = isset($this->settings['selector_position']) ? $this->settings['selector_position'] : 'before_add_to_cart';
