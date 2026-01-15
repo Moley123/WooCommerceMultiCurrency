@@ -85,6 +85,10 @@ class VCC_Admin_Settings {
         // Show currency selector
         $sanitized['show_currency_selector'] = isset($input['show_currency_selector']) ? 'yes' : 'no';
 
+        // Auto-detection settings
+        $sanitized['enable_auto_detection'] = isset($input['enable_auto_detection']) ? 'yes' : 'no';
+        $sanitized['hide_selector_when_autodetect'] = isset($input['hide_selector_when_autodetect']) ? 'yes' : 'no';
+
         // Selector position
         $sanitized['selector_position'] = isset($input['selector_position']) ? sanitize_text_field($input['selector_position']) : 'before_add_to_cart';
 
@@ -275,6 +279,48 @@ class VCC_Admin_Settings {
                                     />
                                     <?php _e('Allow customers to select their preferred currency', 'vignette-currency-converter'); ?>
                                 </label>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="enable_auto_detection"><?php _e('Auto-Detect Currency', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        id="enable_auto_detection"
+                                        name="vcc_settings[enable_auto_detection]"
+                                        value="yes"
+                                        <?php checked($this->settings['enable_auto_detection'] ?? 'no', 'yes'); ?>
+                                    />
+                                    <?php _e('Automatically detect customer currency from IP address', 'vignette-currency-converter'); ?>
+                                </label>
+                                <p class="description">
+                                    <?php _e('Uses ipapi.co (free tier: 1,000 requests/day). Detected currency is cached for 24 hours per IP.', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="hide_selector_when_autodetect"><?php _e('Hide Selector (Auto-Detect)', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        id="hide_selector_when_autodetect"
+                                        name="vcc_settings[hide_selector_when_autodetect]"
+                                        value="yes"
+                                        <?php checked($this->settings['hide_selector_when_autodetect'] ?? 'no', 'yes'); ?>
+                                    />
+                                    <?php _e('Hide currency selector when auto-detection is enabled', 'vignette-currency-converter'); ?>
+                                </label>
+                                <p class="description">
+                                    <?php _e('When enabled, customers will see prices in their detected currency without seeing the selector dropdown.', 'vignette-currency-converter'); ?>
+                                </p>
                             </td>
                         </tr>
 

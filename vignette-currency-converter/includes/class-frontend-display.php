@@ -63,21 +63,48 @@ class VCC_Frontend_Display {
 
     /**
      * Initialize session for storing selected currency
+     * Priority: Manual override (session) > Auto-detection (IP) > Default (GBP)
      */
     private function init_session() {
         if (!session_id() && !headers_sent()) {
             session_start();
         }
 
-        // Get selected currency from session or cookie
+        // Priority 1: Check if user manually selected currency (session + manual_override flag)
+        if (isset($_SESSION['vcc_selected_currency']) && isset($_SESSION['vcc_manual_override'])) {
+            // User manually chose currency - respect it for this session
+            $this->selected_currency = $_SESSION['vcc_selected_currency'];
+            return;
+        }
+
+        // Priority 2: Check session (may be auto-detected from previous page load)
         if (isset($_SESSION['vcc_selected_currency'])) {
             $this->selected_currency = $_SESSION['vcc_selected_currency'];
-        } elseif (isset($_COOKIE['vcc_selected_currency'])) {
+            return;
+        }
+
+        // Priority 3: Check cookie (fallback)
+        if (isset($_COOKIE['vcc_selected_currency'])) {
             $this->selected_currency = sanitize_text_field($_COOKIE['vcc_selected_currency']);
             $_SESSION['vcc_selected_currency'] = $this->selected_currency;
-        } else {
-            $this->selected_currency = 'GBP'; // Default
+            return;
         }
+
+        // Priority 4: Auto-detect from IP geolocation (if enabled)
+        $geolocation = VCC_Geolocation::get_instance();
+        $auto_detected_currency = $geolocation->auto_detect_currency();
+
+        if ($auto_detected_currency && $auto_detected_currency !== 'GBP') {
+            // Auto-detected currency
+            $this->selected_currency = $auto_detected_currency;
+            $_SESSION['vcc_selected_currency'] = $auto_detected_currency;
+            // Don't set manual_override flag - this is automatic
+            return;
+        }
+
+        // Priority 5: Default to GBP
+        $this->selected_currency = 'GBP';
+        $_SESSION['vcc_selected_currency'] = 'GBP';
     }
 
     /**
@@ -347,9 +374,32 @@ class VCC_Frontend_Display {
     }
 
     /**
-     * Check if currency selector is enabled
+     * Check if currency selector should be displayed
+     *
+     * Selector is shown when:
+     * - show_currency_selector is enabled
+     * AND NOT (auto_detection is enabled AND hide_selector_when_autodetect is enabled)
      */
     private function is_currency_selector_enabled() {
-        return isset($this->settings['show_currency_selector']) && $this->settings['show_currency_selector'] === 'yes';
+        $show_selector = isset($this->settings['show_currency_selector'])
+            && $this->settings['show_currency_selector'] === 'yes';
+
+        if (!$show_selector) {
+            return false;
+        }
+
+        // Check if we should hide selector when auto-detection is on
+        $auto_detect_enabled = isset($this->settings['enable_auto_detection'])
+            && $this->settings['enable_auto_detection'] === 'yes';
+
+        $hide_when_autodetect = isset($this->settings['hide_selector_when_autodetect'])
+            && $this->settings['hide_selector_when_autodetect'] === 'yes';
+
+        // Hide selector if both auto-detection and hide setting are enabled
+        if ($auto_detect_enabled && $hide_when_autodetect) {
+            return false;
+        }
+
+        return true;
     }
 }
