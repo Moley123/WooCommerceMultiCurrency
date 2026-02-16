@@ -3,7 +3,7 @@
  * Plugin Name: Vignette Currency Converter
  * Plugin URI: https://github.com/Moley123/WooCommerceMultiCurrency
  * Description: Multi-currency support for vignette products with ExchangeRate-API integration
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Mark Lebrett
  * Author URI: https://marklebrett.co.uk
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('VCC_VERSION', '1.2.0');
+define('VCC_VERSION', '1.3.0');
 define('VCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('VCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('VCC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -46,6 +46,7 @@ require_once VCC_PLUGIN_DIR . 'includes/class-currency-converter.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-admin-settings.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-frontend-display.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-geolocation.php';
+require_once VCC_PLUGIN_DIR . 'includes/class-stripe-integration.php';
 
 /**
  * Main plugin class
@@ -87,6 +88,7 @@ class Vignette_Currency_Converter {
         VCC_Currency_Converter::get_instance();
         VCC_Admin_Settings::get_instance();
         VCC_Frontend_Display::get_instance();
+        VCC_Stripe_Integration::get_instance();
     }
 
     public function activate() {
@@ -95,7 +97,7 @@ class Vignette_Currency_Converter {
             'api_provider' => 'exchangerate-api',
             'api_key' => '',
             'base_currency' => 'GBP',
-            'enabled_currencies' => array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY'),
+            'enabled_currencies' => array_keys(VCC_Currency_Converter::get_all_currencies()),
             'cache_duration' => 12, // hours
             'show_currency_selector' => 'yes',
             'enable_markup' => 'no',

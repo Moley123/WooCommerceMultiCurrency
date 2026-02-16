@@ -1,6 +1,6 @@
 /**
  * Vignette Currency Converter - Frontend JavaScript
- * Version 1.2.0 - Instant currency switching, global selector, cart/checkout support
+ * Version 1.3.0 - Stripe multi-currency, European currencies, flag selector
  */
 
 (function($) {
@@ -290,19 +290,22 @@
         },
 
         /**
-         * Format price with currency symbol
+         * Format price with currency symbol.
+         * Prefix currencies (symbol before number): GBP, EUR, USD, CAD, AUD
+         * Suffix currencies (symbol/code after number): all others
+         * Symbols come from vccData.symbols which is populated server-side.
          */
         formatPrice: function(amount, currency) {
             var symbol = this.symbols[currency] || currency;
-            var formatted = amount.toFixed(2);
+            var formatted = parseFloat(amount).toFixed(2);
 
-            if (currency === 'JPY') {
-                return symbol + Math.round(amount);
-            } else if (currency === 'CHF') {
-                return formatted + ' ' + symbol;
+            var prefixCurrencies = ['GBP', 'EUR', 'USD', 'CAD', 'AUD'];
+            if (prefixCurrencies.indexOf(currency) !== -1) {
+                return symbol + formatted;
             }
 
-            return symbol + formatted;
+            // Suffix: "250.00 CHF", "250.00 NOK", "250.00 zł", etc.
+            return formatted + ' ' + symbol;
         },
 
         /**

@@ -6,7 +6,11 @@ A WordPress/WooCommerce plugin for multi-currency support designed specifically 
 
 - **Source Currency Conversion**: Set the original currency for each vignette product (CHF, EUR, etc.) and automatically convert to GBP
 - **Customer Currency Selection**: Allow customers to view prices in their preferred currency from any page
-- **Global Currency Selector**: Fixed-position selector available on every page — no longer limited to product pages
+- **Flag + Name Selector**: Currency dropdown shows `🇬🇧 GBP — British Pound (£)` style labels
+- **Full European Currency Set**: GBP, EUR, USD, CHF, NOK, SEK, DKK, PLN, CZK, HUF, RON, BGN, CAD, AUD — all manageable from admin
+- **Dynamic Currency Management**: Add any ISO 4217 currency code from admin settings; remove custom currencies with one click
+- **Stripe Multi-Currency Charging**: Optional toggle — charge customers in their selected currency via the WooCommerce Stripe Gateway; Stripe settles to your GBP account automatically
+- **Global Currency Selector**: Fixed-position selector available on every page
 - **Shortcode Support**: `[vcc_currency_selector]` — place the selector anywhere in your theme
 - **WordPress Widget**: Add the currency selector to any widget area (e.g. OceanWP Top Bar, Header Right) via Appearance → Widgets
 - **Full Journey Consistency**: Cart, mini-cart, and checkout all display prices in the customer's selected currency
@@ -19,13 +23,24 @@ A WordPress/WooCommerce plugin for multi-currency support designed specifically 
 
 ## Supported Currencies
 
-- GBP (British Pound) - Base currency
-- EUR (Euro)
-- USD (US Dollar)
-- CHF (Swiss Franc)
-- CAD (Canadian Dollar)
-- AUD (Australian Dollar)
-- JPY (Japanese Yen)
+| Flag | Code | Name | Symbol |
+|------|------|------|--------|
+| 🇬🇧 | GBP | British Pound *(base)* | £ |
+| 🇪🇺 | EUR | Euro | € |
+| 🇺🇸 | USD | US Dollar | $ |
+| 🇨🇭 | CHF | Swiss Franc | CHF |
+| 🇳🇴 | NOK | Norwegian Krone | NOK |
+| 🇸🇪 | SEK | Swedish Krona | SEK |
+| 🇩🇰 | DKK | Danish Krone | DKK |
+| 🇵🇱 | PLN | Polish Zloty | zł |
+| 🇨🇿 | CZK | Czech Koruna | Kč |
+| 🇭🇺 | HUF | Hungarian Forint | Ft |
+| 🇷🇴 | RON | Romanian Leu | lei |
+| 🇧🇬 | BGN | Bulgarian Lev | лв |
+| 🇨🇦 | CAD | Canadian Dollar | CA$ |
+| 🇦🇺 | AUD | Australian Dollar | A$ |
+
+Any additional ISO 4217 currency code can be added via the admin settings custom currency input.
 
 ## Installation
 
@@ -222,6 +237,15 @@ A: Yes, you can use the `vcc_available_currencies` filter in your theme's functi
 A: The plugin uses cached rates as a fallback. If both the API and cache are unavailable, prices will display in GBP only.
 
 ## Changelog
+
+### Version 1.3.0
+- Stripe multi-currency charging — toggleable; charges customers in selected currency, settles to GBP bank account
+- Exchange rate locked at checkout order creation; stored in order meta for accounting
+- Admin order panel shows full conversion details (charged currency, amount, rate, timestamp)
+- Order emails include charged currency note
+- Currency selector now shows flag emoji + full name + symbol (e.g. `🇬🇧 GBP — British Pound (£)`)
+- Full European currency list: NOK, SEK, DKK, PLN, CZK, HUF, RON, BGN added; JPY removed
+- Admin currency management redesigned with styled checkbox grid + custom currency add/remove
 
 ### Version 1.2.0
 - Global currency selector available on every page (fixed footer, shortcode, or widget)

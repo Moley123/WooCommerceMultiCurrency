@@ -102,6 +102,9 @@ class VCC_Admin_Settings {
         $sanitized['default_markup_type'] = isset($input['default_markup_type']) ? sanitize_text_field($input['default_markup_type']) : 'percentage';
         $sanitized['default_markup_value'] = isset($input['default_markup_value']) ? floatval($input['default_markup_value']) : 0;
 
+        // Stripe multi-currency
+        $sanitized['stripe_multicurrency_enabled'] = isset($input['stripe_multicurrency_enabled']) ? 'yes' : 'no';
+
         return $sanitized;
     }
 
@@ -204,33 +207,67 @@ class VCC_Admin_Settings {
                             </th>
                             <td>
                                 <?php
-                                $available_currencies = array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY');
-                                $enabled_currencies = $this->settings['enabled_currencies'] ?? array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY');
+                                $all_currencies     = VCC_Currency_Converter::get_all_currencies();
+                                $enabled_currencies = $this->settings['enabled_currencies'] ?? array_keys($all_currencies);
 
-                                // Hidden input to ensure GBP is always included (disabled checkboxes don't submit)
+                                // GBP always included — hidden input covers the disabled checkbox
                                 ?>
                                 <input type="hidden" name="vcc_settings[enabled_currencies][]" value="GBP" />
-                                <?php
 
-                                foreach ($available_currencies as $currency) {
-                                    $checked = in_array($currency, $enabled_currencies);
-                                    $disabled = ($currency === 'GBP') ? 'disabled' : '';
-                                    ?>
-                                    <label style="display: inline-block; margin-right: 15px;">
+                                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:12px;">
+                                <?php foreach ($all_currencies as $code => $meta) :
+                                    $checked   = in_array($code, $enabled_currencies);
+                                    $disabled  = ($code === 'GBP') ? 'disabled' : '';
+                                ?>
+                                    <label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;">
                                         <input
                                             type="checkbox"
                                             name="vcc_settings[enabled_currencies][]"
-                                            value="<?php echo esc_attr($currency); ?>"
+                                            value="<?php echo esc_attr($code); ?>"
                                             <?php checked($checked); ?>
                                             <?php echo $disabled; ?>
+                                            style="margin:0;"
                                         />
-                                        <?php echo esc_html($currency); ?>
+                                        <span style="font-size:18px;line-height:1;"><?php echo esc_html($meta['flag']); ?></span>
+                                        <span><strong><?php echo esc_html($code); ?></strong> — <?php echo esc_html($meta['name']); ?> <span style="color:#999;">(<?php echo esc_html($meta['symbol']); ?>)</span></span>
                                     </label>
-                                    <?php
-                                }
+                                <?php endforeach; ?>
+                                </div>
+
+                                <!-- Custom currencies -->
+                                <p style="margin-top:8px;margin-bottom:4px;font-weight:600;"><?php _e('Add custom currency:', 'vignette-currency-converter'); ?></p>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <input
+                                        type="text"
+                                        id="vcc-custom-currency-input"
+                                        placeholder="e.g. AED, SGD, TRY"
+                                        maxlength="3"
+                                        style="width:100px;text-transform:uppercase;"
+                                    />
+                                    <button type="button" id="vcc-add-custom-currency" class="button">
+                                        <?php _e('Add', 'vignette-currency-converter'); ?>
+                                    </button>
+                                </div>
+                                <div id="vcc-custom-currencies-list" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+                                <?php
+                                // Render any already-saved custom currencies (codes not in the predefined list)
+                                $predefined_codes = array_keys($all_currencies);
+                                foreach ($enabled_currencies as $code) :
+                                    if (!in_array($code, $predefined_codes) && $code !== 'GBP') :
                                 ?>
-                                <p class="description">
-                                    <?php _e('Select which currencies customers can use. GBP is always enabled.', 'vignette-currency-converter'); ?>
+                                    <span class="vcc-currency-tag" data-currency="<?php echo esc_attr($code); ?>" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#2271b1;color:#fff;border-radius:20px;font-size:12px;">
+                                        <?php echo esc_html($code); ?>
+                                        <input type="hidden" name="vcc_settings[enabled_currencies][]" value="<?php echo esc_attr($code); ?>" class="vcc-custom-currency-hidden" />
+                                        <span class="vcc-currency-tag-remove" data-currency="<?php echo esc_attr($code); ?>" style="cursor:pointer;font-size:14px;line-height:1;">&times;</span>
+                                    </span>
+                                <?php
+                                    endif;
+                                endforeach;
+                                ?>
+                                </div>
+
+                                <p class="description" style="margin-top:8px;">
+                                    <?php _e('GBP is always enabled (base currency). Custom codes must be valid ISO 4217 currency codes supported by ExchangeRate-API.', 'vignette-currency-converter'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -426,6 +463,41 @@ class VCC_Admin_Settings {
                             </td>
                         </tr>
 
+                        <!-- Stripe Multi-Currency -->
+                        <tr>
+                            <th colspan="2">
+                                <h2><?php _e('Stripe Multi-Currency', 'vignette-currency-converter'); ?></h2>
+                            </th>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="stripe_multicurrency_enabled"><?php _e('Enable Stripe Multi-Currency', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        id="stripe_multicurrency_enabled"
+                                        name="vcc_settings[stripe_multicurrency_enabled]"
+                                        value="yes"
+                                        <?php checked($this->settings['stripe_multicurrency_enabled'] ?? 'no', 'yes'); ?>
+                                    />
+                                    <?php _e('Charge customers in their selected currency via Stripe', 'vignette-currency-converter'); ?>
+                                </label>
+                                <p class="description">
+                                    <?php _e('When enabled, the order currency and total are converted to the customer\'s selected currency at checkout. Stripe charges the customer in that currency and settles to your GBP bank account automatically (Stripe applies their standard FX conversion fee, typically ~2%).', 'vignette-currency-converter'); ?>
+                                </p>
+                                <p class="description">
+                                    <strong><?php _e('Requirements:', 'vignette-currency-converter'); ?></strong>
+                                    <?php _e('WooCommerce Stripe Gateway plugin must be installed and active. Your Stripe account must have the target currencies enabled (most are enabled by default).', 'vignette-currency-converter'); ?>
+                                </p>
+                                <p class="description" style="color:#d63638;">
+                                    <?php _e('Note: When enabled, the GBP amount shown in WooCommerce orders will reflect the converted currency total, not the original GBP price. The original GBP amount is stored in the order meta for reference.', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
                         <!-- Bulk Actions -->
                         <tr>
                             <th colspan="2">
@@ -459,6 +531,59 @@ class VCC_Admin_Settings {
 
         <script>
         jQuery(document).ready(function($) {
+            // Custom currency add/remove
+            var $input  = $('#vcc-custom-currency-input');
+            var $addBtn = $('#vcc-add-custom-currency');
+            var $list   = $('#vcc-custom-currencies-list');
+
+            // Collect codes already rendered as predefined checkboxes
+            var predefinedCodes = [];
+            $('input[name="vcc_settings[enabled_currencies][]"]:not(.vcc-custom-currency-hidden)').each(function() {
+                predefinedCodes.push($(this).val().toUpperCase());
+            });
+
+            function addCustomTag(code) {
+                code = code.toUpperCase().trim().replace(/[^A-Z]/g, '');
+                if (!code || code.length !== 3) {
+                    alert('<?php _e('Please enter a valid 3-letter ISO currency code (e.g. AED, SGD)', 'vignette-currency-converter'); ?>');
+                    return;
+                }
+                if (predefinedCodes.indexOf(code) !== -1) {
+                    alert('<?php _e('This currency is already in the list above — just tick its checkbox.', 'vignette-currency-converter'); ?>');
+                    return;
+                }
+                if ($('.vcc-currency-tag[data-currency="' + code + '"]').length) {
+                    return; // already added
+                }
+                var $tag = $(
+                    '<span class="vcc-currency-tag" data-currency="' + code + '" ' +
+                    'style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#2271b1;color:#fff;border-radius:20px;font-size:12px;">' +
+                    code +
+                    '<input type="hidden" name="vcc_settings[enabled_currencies][]" value="' + code + '" class="vcc-custom-currency-hidden" />' +
+                    '<span class="vcc-currency-tag-remove" data-currency="' + code + '" style="cursor:pointer;font-size:14px;line-height:1;">&times;</span>' +
+                    '</span>'
+                );
+                $list.append($tag);
+            }
+
+            $addBtn.on('click', function() {
+                addCustomTag($input.val());
+                $input.val('').focus();
+            });
+
+            $input.on('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); addCustomTag($input.val()); $input.val('').focus(); }
+            });
+
+            $(document).on('click', '.vcc-currency-tag-remove', function() {
+                $(this).closest('.vcc-currency-tag').remove();
+            });
+
+            // Markup unit label
+            $('#default_markup_type').on('change', function() {
+                $('#vcc-markup-unit').text($(this).val() === 'percentage' ? '%' : '£');
+            });
+
             // Test API connection
             $('#vcc-test-api').on('click', function() {
                 var $button = $(this);
@@ -554,11 +679,6 @@ class VCC_Admin_Settings {
                 });
             });
 
-            // Update markup unit when markup type changes
-            $('#default_markup_type').on('change', function() {
-                var unit = $(this).val() === 'percentage' ? '%' : '£';
-                $('#vcc-markup-unit').text(unit);
-            });
         });
         </script>
         <?php

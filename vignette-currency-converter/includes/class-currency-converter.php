@@ -704,12 +704,44 @@ class VCC_Currency_Converter {
     }
 
     /**
+     * Master currency registry — flags, names, symbols for all supported currencies.
+     * Used by admin settings, frontend selector, and price formatting.
+     *
+     * @return array  [ 'CODE' => [ 'flag' => '🏳', 'name' => '...', 'symbol' => '...' ], ... ]
+     */
+    public static function get_all_currencies() {
+        return array(
+            'GBP' => array('flag' => '🇬🇧', 'name' => 'British Pound',      'symbol' => '£'),
+            'EUR' => array('flag' => '🇪🇺', 'name' => 'Euro',                'symbol' => '€'),
+            'USD' => array('flag' => '🇺🇸', 'name' => 'US Dollar',           'symbol' => '$'),
+            'CHF' => array('flag' => '🇨🇭', 'name' => 'Swiss Franc',         'symbol' => 'CHF'),
+            'NOK' => array('flag' => '🇳🇴', 'name' => 'Norwegian Krone',     'symbol' => 'NOK'),
+            'SEK' => array('flag' => '🇸🇪', 'name' => 'Swedish Krona',       'symbol' => 'SEK'),
+            'DKK' => array('flag' => '🇩🇰', 'name' => 'Danish Krone',        'symbol' => 'DKK'),
+            'PLN' => array('flag' => '🇵🇱', 'name' => 'Polish Zloty',        'symbol' => 'zł'),
+            'CZK' => array('flag' => '🇨🇿', 'name' => 'Czech Koruna',        'symbol' => 'Kč'),
+            'HUF' => array('flag' => '🇭🇺', 'name' => 'Hungarian Forint',    'symbol' => 'Ft'),
+            'RON' => array('flag' => '🇷🇴', 'name' => 'Romanian Leu',        'symbol' => 'lei'),
+            'BGN' => array('flag' => '🇧🇬', 'name' => 'Bulgarian Lev',       'symbol' => 'лв'),
+            'CAD' => array('flag' => '🇨🇦', 'name' => 'Canadian Dollar',     'symbol' => 'CA$'),
+            'AUD' => array('flag' => '🇦🇺', 'name' => 'Australian Dollar',   'symbol' => 'A$'),
+        );
+    }
+
+    /**
      * Get list of available currencies
      */
     public function get_available_currencies() {
+        $default = array_keys(self::get_all_currencies());
+
         $currencies = isset($this->settings['enabled_currencies'])
             ? $this->settings['enabled_currencies']
-            : array('GBP', 'EUR', 'USD', 'CHF', 'CAD', 'AUD', 'JPY');
+            : $default;
+
+        // Always ensure GBP is first
+        if (!in_array('GBP', $currencies)) {
+            array_unshift($currencies, 'GBP');
+        }
 
         return apply_filters('vcc_available_currencies', $currencies);
     }
@@ -718,17 +750,8 @@ class VCC_Currency_Converter {
      * Get currency symbol
      */
     public function get_currency_symbol($currency) {
-        $symbols = array(
-            'GBP' => '£',
-            'EUR' => '€',
-            'USD' => '$',
-            'CHF' => 'CHF',
-            'CAD' => 'CA$',
-            'AUD' => 'A$',
-            'JPY' => '¥',
-        );
-
-        return isset($symbols[$currency]) ? $symbols[$currency] : $currency;
+        $all = self::get_all_currencies();
+        return isset($all[$currency]) ? $all[$currency]['symbol'] : $currency;
     }
 
     /**

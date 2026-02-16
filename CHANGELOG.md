@@ -5,6 +5,33 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-16
+
+### Added
+- **Stripe Multi-Currency Charging**: New toggleable feature in admin settings. When enabled, the WooCommerce order currency and total are converted to the customer's selected display currency at checkout. The WooCommerce Stripe Gateway then charges the customer in that currency. Stripe settles to your GBP bank account automatically.
+- **Exchange rate locking**: Rate is locked at the moment the order is created (checkout submit), not at cart or display time, preventing stale-rate issues.
+- **Order meta for accounting**: Original GBP total, exchange rate, charged currency, charged total, and rate-locked timestamp stored as order meta (`_vcc_original_gbp_total`, `_vcc_exchange_rate`, `_vcc_charged_currency`, `_vcc_charged_total`, `_vcc_rate_locked_at`).
+- **Admin order panel**: Multi-currency charge details shown in a dedicated panel on the WooCommerce order edit screen.
+- **Email currency note**: Order confirmation and admin emails include a line noting the charged currency and original GBP equivalent.
+- **Flag + currency name selector**: Currency dropdown now shows `🇬🇧 GBP — British Pound (£)` style labels instead of plain currency codes.
+- **Full European currency list**: Replaced the previous 7-currency hardcoded list with a comprehensive European-focused set — GBP, EUR, USD, CHF, NOK, SEK, DKK, PLN, CZK, HUF, RON, BGN, CAD, AUD. Removed JPY.
+- **Dynamic currency management**: Admin settings now show all currencies as a styled checkbox grid. Custom currencies (any valid ISO 4217 code) can be added via text input and appear as removable tags; they persist across settings saves.
+- **Central currency registry**: New `VCC_Currency_Converter::get_all_currencies()` static method — single source of truth for flags, names, and symbols used by admin UI, frontend selector, and price formatting.
+
+### Changed
+- **Price formatting** unified across PHP and JS: prefix currencies (GBP, EUR, USD, CAD, AUD) show symbol before amount; all others show amount followed by symbol/code (e.g. `250.00 CHF`, `250.00 NOK`, `250.00 zł`).
+- **Default enabled currencies** on fresh install now uses the full European currency list instead of the previous 7-currency set.
+- **`get_currency_symbol()`** now sourced from `get_all_currencies()` registry, covering all 14 predefined currencies.
+- **`get_available_currencies()`** default falls back to full registry if no settings saved yet.
+- **JS `formatPrice()`** updated with explicit prefix/suffix logic matching PHP; JPY special-case removed.
+
+### Technical
+- New file: `includes/class-stripe-integration.php`
+- `VCC_Stripe_Integration::get_instance()` initialised in main plugin `init()` method
+- Stripe class hooks: `woocommerce_checkout_order_created` (priority 10), `woocommerce_admin_order_data_after_billing_address`, `woocommerce_email_order_meta`
+- Admin custom currency JS: add via text input + Enter/button, remove via × tag, persisted as `vcc_settings[enabled_currencies][]` hidden inputs
+- `stripe_multicurrency_enabled` added to settings sanitization
+
 ## [1.2.0] - 2026-02-16
 
 ### Added
@@ -132,6 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin settings page
 - Product-level source currency and price settings
 
+[1.3.0]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.0.3...v1.0.4

@@ -317,9 +317,16 @@ class VCC_Frontend_Display {
                 <?php _e('Currency:', 'vignette-currency-converter'); ?>
             </label>
             <select id="<?php echo esc_attr($selector_id); ?>" class="vcc-currency-selector" data-vcc-selector>
-                <?php foreach ($currencies as $currency) : ?>
+                <?php
+                $all_currencies = VCC_Currency_Converter::get_all_currencies();
+                foreach ($currencies as $currency) :
+                    $flag   = isset($all_currencies[$currency]) ? $all_currencies[$currency]['flag'] : '';
+                    $name   = isset($all_currencies[$currency]) ? $all_currencies[$currency]['name'] : $currency;
+                    $symbol = isset($all_currencies[$currency]) ? $all_currencies[$currency]['symbol'] : $currency;
+                    $label  = trim($flag . ' ' . $currency . ' — ' . $name . ' (' . $symbol . ')');
+                ?>
                     <option value="<?php echo esc_attr($currency); ?>" <?php selected($selected, $currency); ?>>
-                        <?php echo esc_html($this->get_currency_name($currency)); ?>
+                        <?php echo esc_html($label); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -515,40 +522,30 @@ class VCC_Frontend_Display {
 
     /**
      * Format price with currency symbol
+     * Prefix currencies (symbol before): GBP, EUR, USD, CAD, AUD
+     * Suffix currencies (code/symbol after with space): all others
      */
     private function format_price($amount, $symbol, $currency) {
-        $decimals = in_array($currency, array('JPY')) ? 0 : 2;
-        $formatted = number_format($amount, $decimals);
+        $formatted = number_format($amount, 2);
 
-        // Different formats for different currencies
-        if (in_array($currency, array('USD', 'CAD', 'AUD'))) {
+        $prefix_currencies = array('GBP', 'EUR', 'USD', 'CAD', 'AUD');
+        if (in_array($currency, $prefix_currencies)) {
             return $symbol . $formatted;
-        } elseif ($currency === 'EUR') {
-            return '€' . $formatted;
-        } elseif ($currency === 'GBP') {
-            return '£' . $formatted;
-        } elseif ($currency === 'JPY') {
-            return '¥' . $formatted;
-        } else {
-            return $formatted . ' ' . $currency;
         }
+
+        // Suffix: "250.00 CHF", "250.00 NOK", "250.00 zł", etc.
+        return $formatted . ' ' . $symbol;
     }
 
     /**
-     * Get currency name
+     * Get currency display name (for notices and info text)
      */
     private function get_currency_name($currency) {
-        $names = array(
-            'GBP' => 'British Pound (£)',
-            'EUR' => 'Euro (€)',
-            'USD' => 'US Dollar ($)',
-            'CHF' => 'Swiss Franc (CHF)',
-            'CAD' => 'Canadian Dollar (CA$)',
-            'AUD' => 'Australian Dollar (A$)',
-            'JPY' => 'Japanese Yen (¥)',
-        );
-
-        return isset($names[$currency]) ? $names[$currency] : $currency;
+        $all = VCC_Currency_Converter::get_all_currencies();
+        if (isset($all[$currency])) {
+            return $all[$currency]['flag'] . ' ' . $all[$currency]['name'] . ' (' . $currency . ')';
+        }
+        return $currency;
     }
 
     /**
