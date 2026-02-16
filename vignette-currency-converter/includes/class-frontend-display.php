@@ -36,29 +36,31 @@ class VCC_Frontend_Display {
         add_filter('woocommerce_cart_item_price', array($this, 'modify_cart_price'), 999, 3);
         add_filter('woocommerce_cart_item_subtotal', array($this, 'modify_cart_price'), 999, 3);
 
-        // Add currency selector
-        $position = isset($this->settings['selector_position']) ? $this->settings['selector_position'] : 'before_add_to_cart';
+        // Cart and checkout totals
+        add_filter('woocommerce_cart_subtotal', array($this, 'modify_cart_total_display'), 999, 3);
+        add_filter('woocommerce_cart_total', array($this, 'modify_simple_total_display'), 999);
+        add_filter('woocommerce_cart_totals_order_total_html', array($this, 'modify_order_total_html'), 999);
 
-        switch ($position) {
-            case 'before_add_to_cart':
-                add_action('woocommerce_before_add_to_cart_button', array($this, 'render_currency_selector'));
-                break;
-            case 'after_add_to_cart':
-                add_action('woocommerce_after_add_to_cart_button', array($this, 'render_currency_selector'));
-                break;
-            case 'before_price':
-                add_action('woocommerce_single_product_summary', array($this, 'render_currency_selector'), 9);
-                break;
-        }
+        // Mini-cart total
+        add_filter('woocommerce_widget_shopping_cart_total', array($this, 'modify_simple_total_display'), 999);
 
-        // Also show on shop and archive pages
-        add_action('woocommerce_before_shop_loop', array($this, 'render_currency_selector_archive'), 15);
+        // Checkout notice
+        add_action('woocommerce_review_order_after_order_total', array($this, 'display_checkout_currency_info'));
+
+        // Global currency selector in footer (works on all pages)
+        add_action('wp_footer', array($this, 'render_global_currency_selector'));
+
+        // Shortcode for flexible placement: [vcc_currency_selector]
+        add_shortcode('vcc_currency_selector', array($this, 'shortcode_currency_selector'));
+
+        // WordPress widget
+        add_action('widgets_init', array($this, 'register_widget'));
 
         // AJAX handler for currency change
         add_action('wp_ajax_vcc_change_currency', array($this, 'ajax_change_currency'));
         add_action('wp_ajax_nopriv_vcc_change_currency', array($this, 'ajax_change_currency'));
 
-        // Add currency info to cart
+        // Add currency info to cart totals
         add_action('woocommerce_cart_totals_before_order_total', array($this, 'display_cart_currency_info'));
     }
 
@@ -297,46 +299,30 @@ class VCC_Frontend_Display {
     }
 
     /**
-     * Render currency selector on product page
+     * Render the currency selector HTML
+     *
+     * @param string $wrapper_class Additional CSS class for the wrapper div
      */
-    public function render_currency_selector() {
-        if (!$this->is_currency_selector_enabled() || !is_product()) {
-            return;
-        }
+    private function render_selector($wrapper_class = '') {
+        static $selector_count = 0;
+        $selector_count++;
 
-        $this->render_selector();
-    }
-
-    /**
-     * Render currency selector on archive pages
-     */
-    public function render_currency_selector_archive() {
-        if (!$this->is_currency_selector_enabled()) {
-            return;
-        }
-
-        $this->render_selector();
-    }
-
-    /**
-     * Render the actual selector HTML
-     */
-    private function render_selector() {
         $currencies = $this->converter->get_available_currencies();
         $selected = $this->get_selected_currency();
+        // Each instance gets a unique ID, but all share data-vcc-selector for JS binding
+        $selector_id = ($selector_count === 1) ? 'vcc-currency-selector' : 'vcc-currency-selector-' . $selector_count;
         ?>
-        <div class="vcc-currency-selector-wrapper">
-            <label for="vcc-currency-selector" class="vcc-currency-label">
-                <?php _e('Display prices in:', 'vignette-currency-converter'); ?>
+        <div class="vcc-currency-selector-wrapper <?php echo esc_attr($wrapper_class); ?>">
+            <label for="<?php echo esc_attr($selector_id); ?>" class="vcc-currency-label">
+                <?php _e('Currency:', 'vignette-currency-converter'); ?>
             </label>
-            <select id="vcc-currency-selector" class="vcc-currency-selector">
+            <select id="<?php echo esc_attr($selector_id); ?>" class="vcc-currency-selector" data-vcc-selector>
                 <?php foreach ($currencies as $currency) : ?>
                     <option value="<?php echo esc_attr($currency); ?>" <?php selected($selected, $currency); ?>>
                         <?php echo esc_html($this->get_currency_name($currency)); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
-            <span class="vcc-loading" style="display: none;"><?php _e('Updating...', 'vignette-currency-converter'); ?></span>
         </div>
         <?php
     }
@@ -359,6 +345,135 @@ class VCC_Frontend_Display {
         );
         echo '</th>';
         echo '</tr>';
+    }
+
+    /**
+     * Modify cart subtotal display
+     */
+    public function modify_cart_total_display($cart_subtotal, $compound, $cart) {
+        $currency = $this->get_selected_currency();
+        if ($currency === 'GBP') {
+            return $cart_subtotal;
+        }
+
+        $raw_subtotal = $cart->get_subtotal();
+        $converted = $this->converter->convert_from_gbp($raw_subtotal, $currency);
+
+        if (is_wp_error($converted)) {
+            return $cart_subtotal;
+        }
+
+        $symbol = $this->converter->get_currency_symbol($currency);
+        return '<span class="vcc-converted-price vcc-cart-total" data-gbp-price="' . esc_attr($raw_subtotal) . '" data-currency="' . esc_attr($currency) . '">'
+            . $this->format_price($converted, $symbol, $currency) . '</span>';
+    }
+
+    /**
+     * Modify cart/mini-cart total display
+     */
+    public function modify_simple_total_display($total) {
+        $currency = $this->get_selected_currency();
+        if ($currency === 'GBP') {
+            return $total;
+        }
+
+        if (!function_exists('WC') || !WC()->cart) {
+            return $total;
+        }
+
+        $raw_total = WC()->cart->get_total('edit');
+        $converted = $this->converter->convert_from_gbp($raw_total, $currency);
+
+        if (is_wp_error($converted)) {
+            return $total;
+        }
+
+        $symbol = $this->converter->get_currency_symbol($currency);
+        return '<span class="vcc-converted-price vcc-cart-total" data-gbp-price="' . esc_attr($raw_total) . '" data-currency="' . esc_attr($currency) . '">'
+            . $this->format_price($converted, $symbol, $currency) . '</span>';
+    }
+
+    /**
+     * Modify order total HTML in cart/checkout totals table
+     */
+    public function modify_order_total_html($total_html) {
+        $currency = $this->get_selected_currency();
+        if ($currency === 'GBP') {
+            return $total_html;
+        }
+
+        if (!function_exists('WC') || !WC()->cart) {
+            return $total_html;
+        }
+
+        $raw_total = WC()->cart->get_total('edit');
+        $converted = $this->converter->convert_from_gbp($raw_total, $currency);
+
+        if (is_wp_error($converted)) {
+            return $total_html;
+        }
+
+        $symbol = $this->converter->get_currency_symbol($currency);
+        $formatted = $this->format_price($converted, $symbol, $currency);
+
+        return '<strong><span class="vcc-converted-price vcc-order-total" data-gbp-price="' . esc_attr($raw_total) . '" data-currency="' . esc_attr($currency) . '">'
+            . $formatted . '</span></strong>';
+    }
+
+    /**
+     * Display currency info on checkout page
+     */
+    public function display_checkout_currency_info() {
+        $currency = $this->get_selected_currency();
+        if ($currency === 'GBP') {
+            return;
+        }
+
+        echo '<tr class="vcc-currency-info">';
+        echo '<th colspan="2" style="text-align: center; font-size: 12px; color: #666; padding: 8px 0;">';
+        printf(
+            __('Prices shown in %s for reference. Payment is processed in GBP.', 'vignette-currency-converter'),
+            esc_html($this->get_currency_name($currency))
+        );
+        echo '</th>';
+        echo '</tr>';
+    }
+
+    /**
+     * Render global currency selector in page footer (fixed position)
+     */
+    public function render_global_currency_selector() {
+        if (!$this->is_currency_selector_enabled()) {
+            return;
+        }
+
+        $position = isset($this->settings['selector_position']) ? $this->settings['selector_position'] : 'fixed_footer';
+
+        if ($position === 'shortcode_only') {
+            return;
+        }
+
+        $this->render_selector('vcc-global-selector');
+    }
+
+    /**
+     * Shortcode handler: [vcc_currency_selector]
+     */
+    public function shortcode_currency_selector($atts) {
+        if (!$this->is_currency_selector_enabled()) {
+            return '';
+        }
+
+        ob_start();
+        $this->render_selector('vcc-inline-selector');
+        return ob_get_clean();
+    }
+
+    /**
+     * Register the currency selector widget
+     */
+    public function register_widget() {
+        register_widget('VCC_Currency_Selector_Widget');
     }
 
     /**
@@ -464,5 +579,54 @@ class VCC_Frontend_Display {
         }
 
         return true;
+    }
+}
+
+/**
+ * Currency Selector Widget
+ * Allows placing the currency selector in any widget area (e.g. header, sidebar)
+ */
+class VCC_Currency_Selector_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'vcc_currency_selector',
+            __('Currency Selector', 'vignette-currency-converter'),
+            array('description' => __('Display a currency selector dropdown. Also available as shortcode: [vcc_currency_selector]', 'vignette-currency-converter'))
+        );
+    }
+
+    public function widget($args, $instance) {
+        echo $args['before_widget'];
+
+        if (!empty($instance['title'])) {
+            echo $args['before_title'] . apply_filters('widget_title', esc_html($instance['title'])) . $args['after_title'];
+        }
+
+        echo do_shortcode('[vcc_currency_selector]');
+
+        echo $args['after_widget'];
+    }
+
+    public function form($instance) {
+        $title = !empty($instance['title']) ? $instance['title'] : '';
+        ?>
+        <p>
+            <label for="<?php echo esc_attr($this->get_field_id('title')); ?>">
+                <?php esc_html_e('Title:', 'vignette-currency-converter'); ?>
+            </label>
+            <input class="widefat"
+                   id="<?php echo esc_attr($this->get_field_id('title')); ?>"
+                   name="<?php echo esc_attr($this->get_field_name('title')); ?>"
+                   type="text"
+                   value="<?php echo esc_attr($title); ?>" />
+        </p>
+        <?php
+    }
+
+    public function update($new_instance, $old_instance) {
+        $instance = array();
+        $instance['title'] = !empty($new_instance['title']) ? sanitize_text_field($new_instance['title']) : '';
+        return $instance;
     }
 }

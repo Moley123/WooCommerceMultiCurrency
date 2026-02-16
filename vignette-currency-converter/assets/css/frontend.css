@@ -87,22 +87,60 @@
     }
 }
 
-/* Archive/Shop Page Selector */
-.woocommerce-products-header + .vcc-currency-selector-wrapper,
-.archive .vcc-currency-selector-wrapper {
-    margin-bottom: 30px;
+/* Global Selector - Fixed position bottom-right (default) */
+.vcc-currency-selector-wrapper.vcc-global-selector {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    background: #fff;
+    border: 1px solid #ddd;
+    flex-wrap: nowrap;
+    gap: 8px;
 }
 
-/* Product Page Specific Styles */
-.single-product .vcc-currency-selector-wrapper {
-    margin-top: 20px;
-    margin-bottom: 20px;
+.vcc-global-selector .vcc-currency-label {
+    font-size: 12px;
+    white-space: nowrap;
 }
 
-/* Before Price Position */
-.summary .vcc-currency-selector-wrapper {
-    order: -1;
-    margin-bottom: 15px;
+.vcc-global-selector .vcc-currency-selector {
+    min-width: 150px;
+    padding: 5px 28px 5px 10px;
+    font-size: 13px;
+}
+
+/* Inline Selector - used by shortcode and widget */
+.vcc-currency-selector-wrapper.vcc-inline-selector {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    display: inline-flex;
+}
+
+/* Responsive: full-width bar at bottom on mobile */
+@media (max-width: 767px) {
+    .vcc-currency-selector-wrapper.vcc-global-selector {
+        bottom: 0;
+        right: 0;
+        left: 0;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        justify-content: center;
+        padding: 10px 16px;
+    }
+
+    .vcc-global-selector .vcc-currency-selector {
+        min-width: 160px;
+    }
 }
 
 /* Loading Animation */

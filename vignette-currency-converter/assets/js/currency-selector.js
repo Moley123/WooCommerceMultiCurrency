@@ -1,6 +1,6 @@
 /**
  * Vignette Currency Converter - Frontend JavaScript
- * Version 1.1.0 - Instant currency switching without page reload
+ * Version 1.2.0 - Instant currency switching, global selector, cart/checkout support
  */
 
 (function($) {
@@ -12,29 +12,33 @@
         rates: {},
         symbols: {},
         products: {},
+        debug: false,
+        _observerTimeout: null,
+        priceObserver: null,
 
         /**
          * Initialize the currency converter
          */
         init: function() {
-            // Load data from localized script
             if (typeof vccData !== 'undefined') {
                 this.currentCurrency = vccData.current_currency || 'GBP';
                 this.previousCurrency = this.currentCurrency;
                 this.rates = vccData.rates || {};
                 this.symbols = vccData.symbols || {};
                 this.products = vccData.products || {};
+                this.debug = vccData.debug || false;
             }
 
             this.bindEvents();
+            this.initMutationObserver();
         },
 
         /**
-         * Bind event handlers
+         * Bind event handlers - use data-vcc-selector attribute so multiple
+         * selector instances (footer + shortcode) all work
          */
         bindEvents: function() {
-            // Handle currency selector change
-            $(document).on('change', '#vcc-currency-selector', this.handleCurrencyChange.bind(this));
+            $(document).on('change', '[data-vcc-selector]', this.handleCurrencyChange.bind(this));
         },
 
         /**
@@ -43,15 +47,20 @@
         handleCurrencyChange: function(e) {
             e.preventDefault();
 
-            var $selector = $(e.currentTarget);
-            var currency = $selector.val();
+            var currency = $(e.currentTarget).val();
 
             if (currency === this.currentCurrency) {
-                return; // No change
+                return;
             }
 
             this.previousCurrency = this.currentCurrency;
             this.currentCurrency = currency;
+
+            // Sync all selector instances to the same value
+            $('[data-vcc-selector]').val(currency);
+
+            // Clear WCEPO processed markers so prices get re-updated
+            $('[data-vcc-processed-currency]').removeData('vcc-processed-currency');
 
             // Update all prices on page instantly
             this.updateAllPrices(currency);
@@ -64,67 +73,119 @@
         },
 
         /**
+         * Watch for WCEPO DOM mutations and re-apply currency conversion
+         * WCEPO replaces price HTML when product options change - we catch that here
+         */
+        initMutationObserver: function() {
+            if (typeof MutationObserver === 'undefined') {
+                return;
+            }
+
+            var self = this;
+            var targets = document.querySelectorAll('.summary .price, .wcepo-price-wrapper, .product-info .price, .entry-summary .price');
+
+            if (targets.length === 0) {
+                return;
+            }
+
+            this.priceObserver = new MutationObserver(function() {
+                clearTimeout(self._observerTimeout);
+                self._observerTimeout = setTimeout(function() {
+                    if (self.currentCurrency && self.currentCurrency !== 'GBP') {
+                        $('[data-vcc-processed-currency]').removeData('vcc-processed-currency');
+                        self.applyWCEPOFallback(self.currentCurrency);
+                    }
+                }, 50);
+            });
+
+            targets.forEach(function(target) {
+                self.priceObserver.observe(target, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                });
+            });
+        },
+
+        /**
          * Update all prices on the page
+         * Two-pass: our wrapped elements first, then WCEPO fallback always
          */
         updateAllPrices: function(currency) {
             var self = this;
-            var debug = this.debug || (typeof vccData !== 'undefined' && vccData.debug);
+            var debug = this.debug;
 
             if (debug) {
                 console.log('[VCC Debug] updateAllPrices called with currency:', currency);
-                console.log('[VCC Debug] Looking for elements with .vcc-converted-price');
             }
 
-            // Update all converted price elements (our wrapper)
+            // Pass 1: Update elements with our vcc-converted-price wrapper
             var $elements = $('.vcc-converted-price');
 
             if (debug) {
-                console.log('[VCC Debug] Elements found:', $elements.length);
+                console.log('[VCC Debug] .vcc-converted-price elements found:', $elements.length);
             }
 
             $elements.each(function() {
-                var $element = $(this);
-                self.updatePriceElement($element, currency);
+                self.updatePriceElement($(this), currency);
             });
 
-            // FALLBACK: Update WCEPO-wrapped prices if our wrapper isn't present
-            if ($elements.length === 0) {
-                if (debug) {
-                    console.log('[VCC Debug] No .vcc-converted-price elements found, using WCEPO fallback');
-                }
+            // Pass 2: Always run WCEPO fallback (handles prices WCEPO has overwritten)
+            this.applyWCEPOFallback(currency);
 
-                $('.wcepo-price-wrapper .woocommerce-Price-amount, .price .woocommerce-Price-amount').each(function() {
-                    var $element = $(this);
-
-                    // Only update if not already wrapped by our class
-                    if (!$element.closest('.vcc-converted-price').length) {
-                        self.wrapAndUpdateWCEPOPrice($element, currency);
-                    }
-                });
-            }
-
-            // Update WooCommerce variation prices if on product page
+            // Pass 3: Variation prices
             this.updateVariationPrices(currency);
         },
 
         /**
-         * Update individual price element
+         * WCEPO fallback - targets price elements not wrapped by our class
+         * Runs on every currency change, not just when our elements are missing
+         */
+        applyWCEPOFallback: function(currency) {
+            var self = this;
+            var debug = this.debug;
+
+            var selectors = [
+                '.wcepo-price-wrapper .woocommerce-Price-amount',
+                '.summary .price .woocommerce-Price-amount',
+                '.entry-summary .price .woocommerce-Price-amount'
+            ].join(', ');
+
+            $(selectors).each(function() {
+                var $element = $(this);
+
+                // Skip if already wrapped by our class
+                if ($element.closest('.vcc-converted-price').length) {
+                    return;
+                }
+
+                // Skip if already processed for this currency in this cycle
+                if ($element.data('vcc-processed-currency') === currency) {
+                    return;
+                }
+
+                if (debug) {
+                    console.log('[VCC Debug] WCEPO fallback updating element:', this);
+                }
+
+                self.wrapAndUpdateWCEPOPrice($element, currency);
+                $element.data('vcc-processed-currency', currency);
+            });
+        },
+
+        /**
+         * Update individual price element (has our vcc-converted-price class)
          */
         updatePriceElement: function($element, currency) {
-            var self = this;
             var productId = $element.data('product-id');
             var variationId = $element.data('variation-id');
             var sourceCurrency = $element.data('source-currency');
             var sourcePrice = parseFloat($element.data('source-price'));
             var gbpPrice = parseFloat($element.data('gbp-price'));
 
-            // Get effective product ID (variation or simple product)
             var effectiveId = variationId || productId;
-
-            // Get product data
             var productData = this.products[effectiveId] || {};
 
-            // Use data attributes if available, otherwise fall back to product data
             if (!sourceCurrency && productData.source_currency) {
                 sourceCurrency = productData.source_currency;
             }
@@ -137,29 +198,21 @@
 
             var newPrice, formattedPrice;
 
-            // Check if selected currency matches source currency
             if (sourceCurrency && sourceCurrency === currency && !isNaN(sourcePrice)) {
-                // Show original source price (with markup already applied)
                 var sourcePriceWithMarkup = productData.source_price_with_markup || sourcePrice;
                 newPrice = sourcePriceWithMarkup;
                 formattedPrice = this.formatPrice(newPrice, currency);
             } else if (currency === 'GBP' && !isNaN(gbpPrice)) {
-                // Show GBP price directly
                 newPrice = gbpPrice;
                 formattedPrice = this.formatPrice(newPrice, currency);
             } else if (!isNaN(gbpPrice) && this.rates[currency]) {
-                // Convert from GBP to selected currency
                 newPrice = gbpPrice * this.rates[currency];
                 formattedPrice = this.formatPrice(newPrice, currency);
             } else {
-                // Fallback - keep existing price
                 return;
             }
 
-            // Update the element's text
             $element.html(formattedPrice);
-
-            // Store updated price in data attribute for future reference
             $element.data('current-price', newPrice);
             $element.data('current-currency', currency);
         },
@@ -170,7 +223,6 @@
         updateVariationPrices: function(currency) {
             var self = this;
 
-            // Update variation price display
             $('.woocommerce-variation-price .price').each(function() {
                 var $priceElement = $(this).find('.vcc-converted-price');
                 if ($priceElement.length) {
@@ -178,7 +230,6 @@
                 }
             });
 
-            // Update price range display for variable products
             $('.woocommerce-variation-add-to-cart .price').each(function() {
                 var $priceElement = $(this).find('.vcc-converted-price');
                 if ($priceElement.length) {
@@ -188,82 +239,53 @@
         },
 
         /**
-         * Wrap and update WCEPO price elements that weren't caught by our filter
-         * This is a fallback for when WCEPO or other plugins override our price HTML
+         * Update a WCEPO price element that doesn't have our wrapper class.
+         * WCEPO renders: <span class="woocommerce-Price-amount"><bdi>£29.95</bdi></span>
+         * We calculate the correct price and update the <bdi> content.
          */
         wrapAndUpdateWCEPOPrice: function($priceElement, currency) {
-            var debug = this.debug || (typeof vccData !== 'undefined' && vccData.debug);
+            var debug = this.debug;
 
-            // Get product ID from page context
             var productId = null;
             if (typeof this.products === 'object' && Object.keys(this.products).length > 0) {
-                // Use first product ID from products object
                 productId = Object.keys(this.products)[0];
             }
 
             if (!productId || !this.products[productId]) {
                 if (debug) {
-                    console.warn('[VCC] No product data available for WCEPO price update');
+                    console.warn('[VCC] No product data for WCEPO fallback');
                 }
                 return;
             }
 
             var productData = this.products[productId];
-
-            // Get price data
             var gbpPrice = productData.gbp_price;
             var sourceCurrency = productData.source_currency;
             var sourcePrice = productData.source_price;
 
-            if (debug) {
-                console.log('[VCC Debug] WCEPO fallback - Product data:', productData);
-                console.log('[VCC Debug] GBP price:', gbpPrice, 'Source:', sourceCurrency, sourcePrice);
-            }
-
-            // Calculate new price
             var newPrice, formattedPrice;
 
             if (sourceCurrency && sourceCurrency === currency && sourcePrice) {
-                var sourcePriceWithMarkup = productData.source_price_with_markup || sourcePrice;
-                newPrice = sourcePriceWithMarkup;
-                if (debug) {
-                    console.log('[VCC Debug] Using source price with markup:', newPrice);
-                }
+                newPrice = productData.source_price_with_markup || sourcePrice;
             } else if (currency === 'GBP') {
                 newPrice = gbpPrice;
-                if (debug) {
-                    console.log('[VCC Debug] Using GBP price:', newPrice);
-                }
             } else if (this.rates[currency]) {
                 newPrice = gbpPrice * this.rates[currency];
-                if (debug) {
-                    console.log('[VCC Debug] Converting from GBP:', gbpPrice, 'x', this.rates[currency], '=', newPrice);
-                }
             } else {
                 if (debug) {
-                    console.warn('[VCC Debug] Cannot calculate price - missing rate for', currency);
+                    console.warn('[VCC Debug] No rate available for', currency);
                 }
-                return; // Can't calculate, skip update
+                return;
             }
 
             formattedPrice = this.formatPrice(newPrice, currency);
 
-            if (debug) {
-                console.log('[VCC Debug] Formatted price:', formattedPrice);
-            }
-
-            // Update the inner text (the <bdi> tag contains just the price)
+            // Update just the <bdi> content to preserve WCEPO's wrapper structure
             var $bdi = $priceElement.find('bdi');
             if ($bdi.length) {
-                $bdi.text(formattedPrice);
-                if (debug) {
-                    console.log('[VCC Debug] Updated <bdi> element');
-                }
+                $bdi.html(formattedPrice);
             } else {
                 $priceElement.html(formattedPrice);
-                if (debug) {
-                    console.log('[VCC Debug] Updated element HTML directly');
-                }
             }
         },
 
@@ -274,26 +296,22 @@
             var symbol = this.symbols[currency] || currency;
             var formatted = amount.toFixed(2);
 
-            // Format based on currency position (symbol before or after)
-            if (currency === 'EUR') {
-                return symbol + formatted;
-            } else if (currency === 'USD' || currency === 'GBP' || currency === 'CAD' || currency === 'AUD') {
-                return symbol + formatted;
+            if (currency === 'JPY') {
+                return symbol + Math.round(amount);
             } else if (currency === 'CHF') {
                 return formatted + ' ' + symbol;
-            } else if (currency === 'JPY') {
-                return symbol + Math.round(amount); // No decimals for JPY
             }
 
-            // Default format
             return symbol + formatted;
         },
 
         /**
-         * Update session/cookie asynchronously
+         * Update session/cookie asynchronously, then refresh WooCommerce fragments
+         * so mini-cart, cart totals, and checkout update to the new currency
          */
         updateSession: function(currency) {
-            // Update session via AJAX (non-blocking, fire-and-forget)
+            var self = this;
+
             $.ajax({
                 url: vccData.ajax_url,
                 type: 'POST',
@@ -301,10 +319,23 @@
                     action: 'vcc_change_currency',
                     currency: currency,
                     nonce: vccData.nonce,
-                    manual_override: true // Mark as manual user selection
+                    manual_override: true
                 },
                 success: function(response) {
-                    if (!response.success) {
+                    if (response.success) {
+                        // Refresh mini-cart (WooCommerce fragments)
+                        $(document.body).trigger('wc_fragment_refresh');
+
+                        // Refresh checkout order review table
+                        if (typeof vccData !== 'undefined' && vccData.is_checkout) {
+                            $(document.body).trigger('update_checkout');
+                        }
+
+                        // Refresh cart totals on cart page
+                        if (typeof vccData !== 'undefined' && vccData.is_cart) {
+                            $('[name="update_cart"]').prop('disabled', false).trigger('click');
+                        }
+                    } else {
                         console.warn('VCC: Failed to update session', response);
                     }
                 },
@@ -315,7 +346,7 @@
         },
 
         /**
-         * Dispatch currency change event (dual format for compatibility)
+         * Dispatch currency change event (jQuery + Native DOM for WCEPO compatibility)
          */
         dispatchCurrencyChangeEvent: function(currency) {
             var eventData = {
@@ -325,80 +356,47 @@
                 symbols: this.symbols
             };
 
-            // jQuery event (for jQuery-based plugins like WCEPO)
             $(document).trigger('vcc_currency_changed', [eventData]);
 
-            // Native DOM event (for modern JavaScript)
             if (typeof CustomEvent !== 'undefined') {
-                var event = new CustomEvent('vcc_currency_changed', {
+                document.dispatchEvent(new CustomEvent('vcc_currency_changed', {
                     detail: eventData,
                     bubbles: true,
                     cancelable: true
-                });
-                document.dispatchEvent(event);
+                }));
             }
 
-            // Console log for debugging
-            if (vccData.debug) {
+            if (this.debug) {
                 console.log('VCC: Currency changed', eventData);
             }
         },
 
         /**
-         * Get current currency
+         * Public API for external plugins
          */
         getCurrentCurrency: function() {
             return this.currentCurrency;
         },
 
-        /**
-         * Get exchange rate
-         */
         getExchangeRate: function(from, to) {
-            if (from === to) {
-                return 1.0;
-            }
-
-            // Convert via GBP if direct rate not available
-            if (from === 'GBP' && this.rates[to]) {
-                return this.rates[to];
-            }
-
-            if (to === 'GBP' && this.rates[from]) {
-                return 1.0 / this.rates[from];
-            }
-
-            // Convert via GBP: from -> GBP -> to
-            if (this.rates[from] && this.rates[to]) {
-                var gbpToFrom = 1.0 / this.rates[from];
-                var gbpToTo = this.rates[to];
-                return gbpToFrom * gbpToTo;
-            }
-
+            if (from === to) return 1.0;
+            if (from === 'GBP' && this.rates[to]) return this.rates[to];
+            if (to === 'GBP' && this.rates[from]) return 1.0 / this.rates[from];
+            if (this.rates[from] && this.rates[to]) return (1.0 / this.rates[from]) * this.rates[to];
             return null;
         },
 
-        /**
-         * Convert amount between currencies
-         */
         convertAmount: function(amount, from, to) {
             var rate = this.getExchangeRate(from, to);
-            if (rate === null) {
-                return null;
-            }
-            return amount * rate;
+            return rate !== null ? amount * rate : null;
         }
     };
 
-    // Initialize when document is ready
     $(document).ready(function() {
         VCC.init();
-
-        // Expose VCC object globally for external plugins
         window.VCC = VCC;
     });
 
-    // Also expose via jQuery
     $.VCC = VCC;
 
 })(jQuery);

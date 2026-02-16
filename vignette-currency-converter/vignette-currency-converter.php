@@ -122,7 +122,7 @@ class Vignette_Currency_Converter {
     }
 
     public function enqueue_frontend_assets() {
-        if (is_product() || is_shop() || is_product_category() || is_product_tag()) {
+        if (!is_admin()) {
             wp_enqueue_style(
                 'vcc-frontend',
                 VCC_PLUGIN_URL . 'assets/css/frontend.css',
@@ -179,6 +179,19 @@ class Vignette_Currency_Converter {
                 }
             }
 
+            // Also populate products from cart items (for cart/checkout pages)
+            if (function_exists('WC') && WC()->cart) {
+                foreach (WC()->cart->get_cart() as $cart_item) {
+                    $cart_product = $cart_item['data'];
+                    if ($cart_product && is_a($cart_product, 'WC_Product')) {
+                        $id = $cart_product->get_id();
+                        if (!isset($products[$id])) {
+                            $products[$id] = $converter->get_product_currency_data($id);
+                        }
+                    }
+                }
+            }
+
             wp_localize_script('vcc-currency-selector', 'vccData', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('vcc_currency_switch'),
@@ -186,6 +199,8 @@ class Vignette_Currency_Converter {
                 'rates' => $rates,
                 'symbols' => $symbols,
                 'products' => $products,
+                'is_cart' => is_cart(),
+                'is_checkout' => is_checkout(),
                 'debug' => defined('WP_DEBUG') && WP_DEBUG,
             ));
         }

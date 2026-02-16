@@ -95,7 +95,7 @@ class VCC_Admin_Settings {
         $sanitized['hide_selector_when_autodetect'] = isset($input['hide_selector_when_autodetect']) ? 'yes' : 'no';
 
         // Selector position
-        $sanitized['selector_position'] = isset($input['selector_position']) ? sanitize_text_field($input['selector_position']) : 'before_add_to_cart';
+        $sanitized['selector_position'] = isset($input['selector_position']) ? sanitize_text_field($input['selector_position']) : 'fixed_footer';
 
         // Markup settings
         $sanitized['enable_markup'] = isset($input['enable_markup']) ? 'yes' : 'no';
@@ -340,16 +340,16 @@ class VCC_Admin_Settings {
                             </th>
                             <td>
                                 <select id="selector_position" name="vcc_settings[selector_position]">
-                                    <option value="before_add_to_cart" <?php selected($this->settings['selector_position'] ?? 'before_add_to_cart', 'before_add_to_cart'); ?>>
-                                        <?php _e('Before Add to Cart Button', 'vignette-currency-converter'); ?>
+                                    <option value="fixed_footer" <?php selected($this->settings['selector_position'] ?? 'fixed_footer', 'fixed_footer'); ?>>
+                                        <?php _e('Fixed Position (Bottom-Right Corner)', 'vignette-currency-converter'); ?>
                                     </option>
-                                    <option value="after_add_to_cart" <?php selected($this->settings['selector_position'] ?? '', 'after_add_to_cart'); ?>>
-                                        <?php _e('After Add to Cart Button', 'vignette-currency-converter'); ?>
-                                    </option>
-                                    <option value="before_price" <?php selected($this->settings['selector_position'] ?? '', 'before_price'); ?>>
-                                        <?php _e('Before Price', 'vignette-currency-converter'); ?>
+                                    <option value="shortcode_only" <?php selected($this->settings['selector_position'] ?? '', 'shortcode_only'); ?>>
+                                        <?php _e('Shortcode / Widget Only', 'vignette-currency-converter'); ?>
                                     </option>
                                 </select>
+                                <p class="description">
+                                    <?php _e('Use shortcode <code>[vcc_currency_selector]</code> or the "Currency Selector" widget to place the selector anywhere (e.g. header, navigation menu, sidebar).', 'vignette-currency-converter'); ?>
+                                </p>
                             </td>
                         </tr>
 
