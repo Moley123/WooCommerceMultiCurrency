@@ -5,12 +5,17 @@ A WordPress/WooCommerce plugin for multi-currency support designed specifically 
 ## Features
 
 - **Source Currency Conversion**: Set the original currency for each vignette product (CHF, EUR, etc.) and automatically convert to GBP
-- **Customer Currency Selection**: Allow customers to view prices in their preferred currency
+- **Customer Currency Selection**: Allow customers to view prices in their preferred currency from any page
+- **Global Currency Selector**: Fixed-position selector available on every page — no longer limited to product pages
+- **Shortcode Support**: `[vcc_currency_selector]` — place the selector anywhere in your theme
+- **WordPress Widget**: Add the currency selector to any widget area (e.g. OceanWP Top Bar, Header Right) via Appearance → Widgets
+- **Full Journey Consistency**: Cart, mini-cart, and checkout all display prices in the customer's selected currency
+- **Instant Price Updates**: Currency changes apply instantly with no page reload, including WCEPO option-driven price changes
 - **ExchangeRate-API Integration**: Uses reliable ExchangeRate-API for accurate, real-time exchange rates
 - **Smart Caching**: Cache exchange rates for 12 hours to minimize API calls and improve performance
 - **Automatic Price Updates**: Bulk update all product prices when exchange rates change
-- **WooCommerce Integration**: Seamlessly integrates with WooCommerce product pages, shop pages, and cart
-- **Responsive Design**: Mobile-friendly currency selector
+- **WCEPO Compatible**: Full compatibility with WooCommerce Extra Product Options via priority-999 filters and JS fallback
+- **Responsive Design**: Mobile-friendly currency selector (full-width bar on mobile)
 
 ## Supported Currencies
 
@@ -61,17 +66,28 @@ A WordPress/WooCommerce plugin for multi-currency support designed specifically 
 ### Customer Experience
 
 1. **Currency Selector**
-   - Customers see a dropdown on product pages
-   - Can select their preferred currency (EUR, USD, CHF, etc.)
-   - Prices automatically update to selected currency
+   - A currency selector is available on every page (fixed bottom-right by default)
+   - Can also be placed in a widget area or via shortcode (e.g. OceanWP header/top bar)
+   - Prices update instantly across the entire page with no reload
 
 2. **Price Display**
-   - Prices shown in selected currency
+   - Prices shown in selected currency everywhere: product pages, shop, cart, checkout
    - Example: Customer selects EUR, sees "€47.20" instead of "£40.00"
 
 3. **Cart & Checkout**
-   - Prices displayed in selected currency
-   - Note shown: "Prices displayed in EUR. Payment will be processed in GBP."
+   - Cart line items, subtotals, and order total all display in the selected currency
+   - Mini-cart refreshes automatically after currency change
+   - Notice shown at checkout: "Prices shown in EUR. Payment processed in GBP."
+
+### Adding the Currency Selector to Your Header (OceanWP)
+
+1. Go to **Appearance → Customize → Top Bar** and enable the Top Bar
+2. Go to **Appearance → Widgets**
+3. Find the **"Top Bar Right"** (or Left) widget area
+4. Add the **"Currency Selector"** widget
+5. Save
+
+Alternatively, use the shortcode `[vcc_currency_selector]` in any Custom HTML widget or page builder block.
 
 ## Admin Features
 
@@ -91,7 +107,8 @@ A WordPress/WooCommerce plugin for multi-currency support designed specifically 
 
 - **Display Settings**
   - Show/hide currency selector
-  - Currency selector position (before price, before add to cart, after add to cart)
+  - Currency selector position: `Fixed Footer` (floating on all pages) or `Shortcode/Widget Only` (manual placement)
+  - Use `[vcc_currency_selector]` shortcode or the Currency Selector widget for manual placement
 
 - **Bulk Actions**
   - Update all product prices from current exchange rates
@@ -141,14 +158,28 @@ vignette-currency-converter/
 ### Hooks & Filters
 
 **Actions:**
-- `woocommerce_before_add_to_cart_button` - Currency selector display
-- `woocommerce_after_add_to_cart_button` - Alternative selector position
-- `woocommerce_single_product_summary` - Before price selector position
+- `wp_footer` - Renders global currency selector on every frontend page
+- `widgets_init` - Registers `VCC_Currency_Selector_Widget`
+- `woocommerce_review_order_after_order_total` - Checkout currency notice
+- `woocommerce_cart_totals_before_order_total` - Cart currency notice
 
 **Filters:**
-- `woocommerce_get_price_html` - Price display modification
-- `woocommerce_cart_item_price` - Cart price display
+- `woocommerce_get_price_html` (priority 999) - Product price display
+- `woocommerce_cart_item_price` (priority 999) - Cart line item price
+- `woocommerce_cart_item_subtotal` (priority 999) - Cart line item subtotal
+- `woocommerce_cart_subtotal` (priority 999) - Cart subtotal total
+- `woocommerce_cart_total` (priority 999) - Cart grand total
+- `woocommerce_cart_totals_order_total_html` (priority 999) - Order total HTML
+- `woocommerce_widget_shopping_cart_total` (priority 999) - Mini-cart total
 - `vcc_available_currencies` - Customize available currencies
+- `vcc_country_to_currency_mapping` - Customize country-to-currency mappings
+- `vcc_auto_detected_currency` - Override auto-detected currency
+- `vcc_get_exchange_rate` - Provide custom exchange rates
+- `vcc_all_exchange_rates` - Filter bulk rate responses
+- `vcc_product_currency_data` - Modify product data passed to JavaScript
+
+**Shortcodes:**
+- `[vcc_currency_selector]` - Renders the currency selector inline
 
 ### Database
 
@@ -191,6 +222,38 @@ A: Yes, you can use the `vcc_available_currencies` filter in your theme's functi
 A: The plugin uses cached rates as a fallback. If both the API and cache are unavailable, prices will display in GBP only.
 
 ## Changelog
+
+### Version 1.2.0
+- Global currency selector available on every page (fixed footer, shortcode, or widget)
+- `[vcc_currency_selector]` shortcode and WordPress widget for flexible placement (e.g. OceanWP Top Bar)
+- Cart, mini-cart, and checkout prices now display in the customer's selected currency
+- Checkout notice: "Prices shown in X. Payment processed in GBP."
+- MutationObserver re-applies currency conversion when WCEPO re-renders prices
+- Fixed: Fatal error `get_id() on string` in `enqueue_frontend_assets()`
+- Fixed: Prices not updating — missing data attributes on price elements
+- Fixed: GBP disappearing from currency selector after saving admin settings
+- Fixed: WCEPO compatibility — WCEPO fallback now always runs on every currency change
+- Raised filter priority to 999 to run after WCEPO and other plugins
+
+### Version 1.1.0
+- Instant currency switching (no page reload)
+- Auto-detection via IP geolocation
+- Public API methods for external plugin integration
+- Session-based manual currency override
+- Dual event system (jQuery + native DOM)
+- WCEPO integration support
+
+### Version 1.0.4
+- Variable product support with per-variation pricing and markup overrides
+
+### Version 1.0.3
+- Markup feature (percentage and fixed amount) with global and per-product overrides
+
+### Version 1.0.2
+- HPOS (High-Performance Order Storage) compatibility
+
+### Version 1.0.1
+- Fixed product meta save timing issues
 
 ### Version 1.0.0
 - Initial release

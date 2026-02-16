@@ -5,6 +5,39 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-16
+
+### Added
+- **Global Currency Selector**: Currency selector now renders on every page as a fixed-position widget (bottom-right), no longer limited to product pages
+- **`[vcc_currency_selector]` Shortcode**: Place the currency selector anywhere in your theme — page templates, header, footer, or any content area
+- **WordPress Widget** (`VCC_Currency_Selector_Widget`): Add the currency selector to any registered widget area (e.g. OceanWP Top Bar, Header Right) via Appearance → Widgets
+- **Cart & Checkout Currency Consistency**: Prices in cart line items, cart totals, order review table, and mini-cart now all display in the customer's selected currency
+- **Checkout Currency Notice**: Informational notice at checkout — "Prices shown in X. Payment processed in GBP." — so customers understand the billing currency
+- **WooCommerce Fragment Refresh**: Changing currency now triggers a live mini-cart refresh via WooCommerce's built-in AJAX fragment system
+- **MutationObserver**: Automatically re-applies currency conversion when WCEPO or other plugins re-render price elements after option changes
+- **Cart Page Live Refresh**: Changing currency on the cart page automatically recalculates cart totals
+
+### Fixed
+- **Fatal error** (`Call to a member function get_id() on string`) in `enqueue_frontend_assets()` when the global `$product` variable was a string instead of a `WC_Product` object
+- **Prices not updating on currency change** — price elements were missing required `data-product-id`, `data-source-currency`, `data-source-price`, `data-gbp-price`, and `data-currency` attributes needed by JavaScript
+- **WCEPO compatibility** — WooCommerce Extra Product Options plugin was replacing our price wrapper HTML entirely; WCEPO fallback selector now always runs on every currency change (not only when `vcc-converted-price` elements are absent)
+- **GBP missing from frontend currency selector** — GBP checkbox in admin settings is correctly disabled (base currency cannot be deselected), but disabled HTML checkboxes do not submit with forms; fixed by adding a hidden input to ensure GBP is always included in `enabled_currencies` on save
+
+### Changed
+- **Filter priority** raised from `10` to `999` on all `woocommerce_get_price_html`, `woocommerce_cart_item_price`, and `woocommerce_cart_item_subtotal` filters to ensure our wrapper runs after WCEPO and other plugins
+- **Asset loading** expanded from product/shop/category/tag pages only to all non-admin pages, enabling currency conversion on cart, checkout, and custom pages
+- **Currency selector binding** changed from `#vcc-currency-selector` (single element) to `[data-vcc-selector]` attribute (multiple instances), all synced on change
+- **Selector position options** updated: `fixed_footer` (automatic floating selector on all pages, default) and `shortcode_only` (manual placement only via shortcode or widget)
+- **JavaScript** rewritten to v1.2.0 with multi-instance selector sync, always-on WCEPO fallback, and MutationObserver integration
+
+### Technical
+- New PHP filters: `woocommerce_cart_subtotal`, `woocommerce_cart_total`, `woocommerce_cart_totals_order_total_html`, `woocommerce_widget_shopping_cart_total`
+- New PHP action: `woocommerce_review_order_after_order_total` for checkout currency notice
+- `wp_footer` action renders global selector HTML on every frontend page
+- `widgets_init` registers `VCC_Currency_Selector_Widget`
+- Cart product data now populated from `WC()->cart` items during asset localization
+- `vccData` now includes `is_cart` and `is_checkout` flags for context-aware JS behaviour
+
 ## [1.1.0] - 2026-01-15
 
 ### Added
@@ -99,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin settings page
 - Product-level source currency and price settings
 
+[1.2.0]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/Moley123/WooCommerceMultiCurrency/compare/v1.0.2...v1.0.3
