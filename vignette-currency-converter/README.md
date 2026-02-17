@@ -238,6 +238,9 @@ A: The plugin uses cached rates as a fallback. If both the API and cache are una
 
 ## Changelog
 
+### Version 1.4.2
+- Changed: Selecting a currency now reloads the page after saving the session, ensuring all prices are server-rendered in the correct currency (eliminates WCEPO re-render race condition)
+
 ### Version 1.4.1
 - Fixed: Currencies whose symbol equals their code (CHF, NOK, SEK, etc.) no longer display as `CHF CHF` — trigger shows just the code when symbol and code are identical
 - Fixed: Selecting or resetting a product variant now re-applies currency conversion to the freshly-rendered price

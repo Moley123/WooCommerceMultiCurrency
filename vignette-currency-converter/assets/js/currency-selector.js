@@ -124,25 +124,16 @@
             this.previousCurrency = this.currentCurrency;
             this.currentCurrency = currency;
 
-            // Update popup selected state
+            // Update popup selected state (visible briefly before reload)
             $('.vcc-popup-option').removeClass('vcc-selected').attr('aria-selected', 'false');
             $('.vcc-popup-option[data-currency="' + currency + '"]')
                 .addClass('vcc-selected').attr('aria-selected', 'true');
 
-            // Update all trigger text instances
+            // Update trigger text immediately for instant visual feedback
             this.updateTriggerText(currency);
 
-            // Clear WCEPO processed markers so prices get re-updated
-            $('[data-vcc-processed-currency]').removeData('vcc-processed-currency');
-
-            // Update all prices on page instantly
-            this.updateAllPrices(currency);
-
-            // Update session/cookie asynchronously (non-blocking)
+            // Save to session then reload — PHP re-renders all prices correctly
             this.updateSession(currency);
-
-            // Dispatch events for external plugins (WCEPO)
-            this.dispatchCurrencyChangeEvent(currency);
         },
 
         /**
@@ -404,12 +395,11 @@
         },
 
         /**
-         * Update session/cookie asynchronously, then refresh WooCommerce fragments
-         * so mini-cart, cart totals, and checkout update to the new currency
+         * Save the selected currency to the PHP session, then reload the page.
+         * Reloading ensures PHP re-renders all prices, cart totals, and notices
+         * in the correct currency — avoids client-side race conditions with WCEPO.
          */
         updateSession: function(currency) {
-            var self = this;
-
             $.ajax({
                 url: vccData.ajax_url,
                 type: 'POST',
@@ -419,26 +409,9 @@
                     nonce: vccData.nonce,
                     manual_override: true
                 },
-                success: function(response) {
-                    if (response.success) {
-                        // Refresh mini-cart (WooCommerce fragments)
-                        $(document.body).trigger('wc_fragment_refresh');
-
-                        // Refresh checkout order review table
-                        if (typeof vccData !== 'undefined' && vccData.is_checkout) {
-                            $(document.body).trigger('update_checkout');
-                        }
-
-                        // Refresh cart totals on cart page
-                        if (typeof vccData !== 'undefined' && vccData.is_cart) {
-                            $('[name="update_cart"]').prop('disabled', false).trigger('click');
-                        }
-                    } else {
-                        console.warn('VCC: Failed to update session', response);
-                    }
-                },
-                error: function() {
-                    console.warn('VCC: Session update request failed');
+                complete: function() {
+                    // Reload regardless of AJAX success/error so the user is never stuck
+                    window.location.reload();
                 }
             });
         },

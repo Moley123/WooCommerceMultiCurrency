@@ -5,6 +5,11 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-02-17
+
+### Changed
+- **Page reload on currency change**: Selecting a currency now saves the preference to the PHP session and reloads the page. This ensures all prices, cart totals, and checkout figures are server-rendered in the correct currency, eliminating the race condition where WCEPO re-renders could overwrite client-side price updates.
+
 ## [1.4.1] - 2026-02-17
 
 ### Fixed
