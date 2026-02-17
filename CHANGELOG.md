@@ -5,6 +5,15 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-02-17
+
+### Fixed
+- **Trigger text deduplication**: Currencies whose symbol equals their code (CHF, NOK, SEK, DKK, PLN, CZK, HUF, RON, BGN) no longer show as `CHF CHF`. The trigger now shows just the code (`CHF`) when symbol and code are identical, and `symbol code` (e.g. `£ GBP`) when they differ.
+- **Variant selection not updating price**: Added `found_variation` and `reset_data` WooCommerce event listeners so prices are re-converted 150 ms after WooCommerce re-renders the variation price HTML.
+- **Variation price containers not observed**: MutationObserver now also watches `.woocommerce-variation-price` and `.woocommerce-variation-add-to-cart` so DOM-driven re-renders are caught.
+- **WCEPO fallback using wrong product**: `wrapAndUpdateWCEPOPrice()` now resolves product ID from the nearest `form.variations_form[data-product_id]` or `.product[data-product_id]` ancestor before falling back to the first known key.
+- **Prices not converting on page load for returning visitors**: On init, if the session already holds a non-GBP currency (geolocation auto-set or returning visitor), `updateAllPrices` now fires after 200 ms so prices are immediately shown in the correct currency without requiring a manual switch.
+
 ## [1.4.0] - 2026-02-17
 
 ### Added

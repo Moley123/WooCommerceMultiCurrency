@@ -238,6 +238,12 @@ A: The plugin uses cached rates as a fallback. If both the API and cache are una
 
 ## Changelog
 
+### Version 1.4.1
+- Fixed: Currencies whose symbol equals their code (CHF, NOK, SEK, etc.) no longer display as `CHF CHF` — trigger shows just the code when symbol and code are identical
+- Fixed: Selecting or resetting a product variant now re-applies currency conversion to the freshly-rendered price
+- Fixed: MutationObserver now watches variation price containers so DOM-driven re-renders are caught
+- Fixed: Prices now convert on page load when a non-GBP currency is already in session (geolocation auto-set, returning visitor)
+
 ### Version 1.4.0
 - Currency selector redesigned as a plain-text trigger (`£ GBP`) that opens a centered popup modal on click — no more `<select>` dropdown
 - Popup shows all currencies in a 2-column grid: emoji flag, full name, symbol; selected currency highlighted with checkmark

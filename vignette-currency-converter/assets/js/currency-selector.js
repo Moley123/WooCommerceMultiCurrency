@@ -31,6 +31,13 @@
 
             this.bindEvents();
             this.initMutationObserver();
+
+            // If session already has a non-GBP currency (geolocation / returning visitor),
+            // convert prices on load without waiting for a manual selection.
+            if (this.currentCurrency && this.currentCurrency !== 'GBP') {
+                var self = this;
+                setTimeout(function() { self.updateAllPrices(self.currentCurrency); }, 200);
+            }
         },
 
         /**
@@ -69,6 +76,22 @@
                 e.preventDefault();
                 var currency = $(this).data('currency');
                 if (currency) self.selectCurrency(currency);
+            });
+
+            // Re-apply currency when WooCommerce renders a variation price
+            $(document).on('found_variation', 'form.variations_form', function() {
+                if (self.currentCurrency && self.currentCurrency !== 'GBP') {
+                    $('[data-vcc-processed-currency]').removeData('vcc-processed-currency');
+                    setTimeout(function() { self.updateAllPrices(self.currentCurrency); }, 150);
+                }
+            });
+
+            // Re-apply currency when WooCommerce resets the variation selection
+            $(document).on('reset_data', 'form.variations_form', function() {
+                if (self.currentCurrency && self.currentCurrency !== 'GBP') {
+                    $('[data-vcc-processed-currency]').removeData('vcc-processed-currency');
+                    setTimeout(function() { self.updateAllPrices(self.currentCurrency); }, 150);
+                }
             });
         },
 
@@ -127,7 +150,7 @@
          */
         updateTriggerText: function(currency) {
             var symbol = this.symbols[currency] || currency;
-            var text   = symbol + ' ' + currency;
+            var text   = (symbol !== currency) ? symbol + ' ' + currency : currency;
             $('[data-vcc-trigger]').text(text).attr('data-current-currency', currency);
         },
 
@@ -141,7 +164,10 @@
             }
 
             var self = this;
-            var targets = document.querySelectorAll('.summary .price, .wcepo-price-wrapper, .product-info .price, .entry-summary .price');
+            var targets = document.querySelectorAll(
+                '.summary .price, .wcepo-price-wrapper, .product-info .price, .entry-summary .price, ' +
+                '.woocommerce-variation-price, .woocommerce-variation-add-to-cart'
+            );
 
             if (targets.length === 0) {
                 return;
@@ -305,10 +331,20 @@
         wrapAndUpdateWCEPOPrice: function($priceElement, currency) {
             var debug = this.debug;
 
+            // Derive product ID from nearest WC container, fall back to first known key
             var productId = null;
-            if (typeof this.products === 'object' && Object.keys(this.products).length > 0) {
+            var $form = $priceElement.closest('form.variations_form, form.cart');
+            if ($form.length) {
+                productId = $form.data('product_id') || $form.find('[name="product_id"]').val() || null;
+            }
+            if (!productId) {
+                var $article = $priceElement.closest('.product[data-product_id], article[data-product_id]');
+                if ($article.length) productId = $article.data('product_id') || null;
+            }
+            if (!productId && typeof this.products === 'object' && Object.keys(this.products).length > 0) {
                 productId = Object.keys(this.products)[0];
             }
+            if (productId) productId = String(productId);
 
             if (!productId || !this.products[productId]) {
                 if (debug) {

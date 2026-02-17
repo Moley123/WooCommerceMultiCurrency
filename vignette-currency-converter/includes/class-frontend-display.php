@@ -309,7 +309,7 @@ class VCC_Frontend_Display {
         $selected     = $this->get_selected_currency();
         $all          = VCC_Currency_Converter::get_all_currencies();
         $symbol       = isset($all[$selected]) ? $all[$selected]['symbol'] : $selected;
-        $trigger_text = $symbol . ' ' . $selected;
+        $trigger_text = ($symbol !== $selected) ? $symbol . ' ' . $selected : $selected;
         ?>
         <div class="vcc-currency-selector-wrapper <?php echo esc_attr($wrapper_class); ?>">
             <span class="vcc-currency-trigger" data-vcc-trigger
