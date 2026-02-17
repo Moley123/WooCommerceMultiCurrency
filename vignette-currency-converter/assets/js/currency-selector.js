@@ -1,6 +1,6 @@
 /**
  * Vignette Currency Converter - Frontend JavaScript
- * Version 1.3.0 - Stripe multi-currency, European currencies, flag selector
+ * Version 1.4.0 - Currency popup selector, Stripe-aware notices
  */
 
 (function($) {
@@ -34,30 +34,80 @@
         },
 
         /**
-         * Bind event handlers - use data-vcc-selector attribute so multiple
-         * selector instances (footer + shortcode) all work
+         * Bind event handlers for popup trigger, popup options, and close controls
          */
         bindEvents: function() {
-            $(document).on('change', '[data-vcc-selector]', this.handleCurrencyChange.bind(this));
+            var self = this;
+
+            // Open popup when any trigger is clicked
+            $(document).on('click keydown', '[data-vcc-trigger]', function(e) {
+                if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                self.openPopup();
+            });
+
+            // Close popup — × button
+            $(document).on('click', '.vcc-popup-close', function() {
+                self.closePopup();
+            });
+
+            // Close popup — clicking the overlay backdrop
+            $(document).on('click', '#vcc-popup-overlay', function(e) {
+                if ($(e.target).is('#vcc-popup-overlay')) {
+                    self.closePopup();
+                }
+            });
+
+            // Close popup — Escape key
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') self.closePopup();
+            });
+
+            // Select a currency from the popup
+            $(document).on('click keydown', '.vcc-popup-option', function(e) {
+                if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                var currency = $(this).data('currency');
+                if (currency) self.selectCurrency(currency);
+            });
         },
 
         /**
-         * Handle currency change event
+         * Open the currency selection popup
          */
-        handleCurrencyChange: function(e) {
-            e.preventDefault();
+        openPopup: function() {
+            $('#vcc-popup-overlay').fadeIn(150);
+            $('body').addClass('vcc-popup-open');
+        },
 
-            var currency = $(e.currentTarget).val();
+        /**
+         * Close the currency selection popup
+         */
+        closePopup: function() {
+            $('#vcc-popup-overlay').fadeOut(150);
+            $('body').removeClass('vcc-popup-open');
+        },
 
+        /**
+         * Handle a currency selection from the popup
+         */
+        selectCurrency: function(currency) {
             if (currency === this.currentCurrency) {
+                this.closePopup();
                 return;
             }
 
+            this.closePopup();
             this.previousCurrency = this.currentCurrency;
             this.currentCurrency = currency;
 
-            // Sync all selector instances to the same value
-            $('[data-vcc-selector]').val(currency);
+            // Update popup selected state
+            $('.vcc-popup-option').removeClass('vcc-selected').attr('aria-selected', 'false');
+            $('.vcc-popup-option[data-currency="' + currency + '"]')
+                .addClass('vcc-selected').attr('aria-selected', 'true');
+
+            // Update all trigger text instances
+            this.updateTriggerText(currency);
 
             // Clear WCEPO processed markers so prices get re-updated
             $('[data-vcc-processed-currency]').removeData('vcc-processed-currency');
@@ -70,6 +120,15 @@
 
             // Dispatch events for external plugins (WCEPO)
             this.dispatchCurrencyChangeEvent(currency);
+        },
+
+        /**
+         * Update the text shown on all trigger instances
+         */
+        updateTriggerText: function(currency) {
+            var symbol = this.symbols[currency] || currency;
+            var text   = symbol + ' ' + currency;
+            $('[data-vcc-trigger]').text(text).attr('data-current-currency', currency);
         },
 
         /**

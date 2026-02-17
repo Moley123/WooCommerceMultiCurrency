@@ -49,6 +49,7 @@ class VCC_Frontend_Display {
 
         // Global currency selector in footer (works on all pages)
         add_action('wp_footer', array($this, 'render_global_currency_selector'));
+        add_action('wp_footer', array($this, 'render_currency_popup'), 20);
 
         // Shortcode for flexible placement: [vcc_currency_selector]
         add_shortcode('vcc_currency_selector', array($this, 'shortcode_currency_selector'));
@@ -299,59 +300,90 @@ class VCC_Frontend_Display {
     }
 
     /**
-     * Render the currency selector HTML
+     * Render the currency trigger — a clickable text label that opens the popup.
+     * No <select>, no label. Popup is rendered separately via render_currency_popup().
      *
      * @param string $wrapper_class Additional CSS class for the wrapper div
      */
     private function render_selector($wrapper_class = '') {
-        static $selector_count = 0;
-        $selector_count++;
-
-        $currencies = $this->converter->get_available_currencies();
-        $selected = $this->get_selected_currency();
-        // Each instance gets a unique ID, but all share data-vcc-selector for JS binding
-        $selector_id = ($selector_count === 1) ? 'vcc-currency-selector' : 'vcc-currency-selector-' . $selector_count;
+        $selected     = $this->get_selected_currency();
+        $all          = VCC_Currency_Converter::get_all_currencies();
+        $symbol       = isset($all[$selected]) ? $all[$selected]['symbol'] : $selected;
+        $trigger_text = $symbol . ' ' . $selected;
         ?>
         <div class="vcc-currency-selector-wrapper <?php echo esc_attr($wrapper_class); ?>">
-            <label for="<?php echo esc_attr($selector_id); ?>" class="vcc-currency-label">
-                <?php _e('Currency:', 'vignette-currency-converter'); ?>
-            </label>
-            <select id="<?php echo esc_attr($selector_id); ?>" class="vcc-currency-selector" data-vcc-selector>
-                <?php
-                $all_currencies = VCC_Currency_Converter::get_all_currencies();
-                foreach ($currencies as $currency) :
-                    $flag   = isset($all_currencies[$currency]) ? $all_currencies[$currency]['flag'] : '';
-                    $name   = isset($all_currencies[$currency]) ? $all_currencies[$currency]['name'] : $currency;
-                    $symbol = isset($all_currencies[$currency]) ? $all_currencies[$currency]['symbol'] : $currency;
-                    $label  = trim($flag . ' ' . $currency . ' — ' . $name . ' (' . $symbol . ')');
-                ?>
-                    <option value="<?php echo esc_attr($currency); ?>" <?php selected($selected, $currency); ?>>
-                        <?php echo esc_html($label); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+            <span class="vcc-currency-trigger" data-vcc-trigger
+                  data-current-currency="<?php echo esc_attr($selected); ?>"
+                  role="button" tabindex="0"
+                  aria-haspopup="dialog" aria-label="<?php esc_attr_e('Select currency', 'vignette-currency-converter'); ?>">
+                <?php echo esc_html($trigger_text); ?>
+            </span>
         </div>
         <?php
     }
 
     /**
-     * Display currency info in cart
+     * Render the currency selection popup modal.
+     * Called once via wp_footer (priority 20). Shared by all trigger instances.
+     */
+    public function render_currency_popup() {
+        if (!$this->is_currency_selector_enabled()) return;
+
+        static $rendered = false;
+        if ($rendered) return;
+        $rendered = true;
+
+        $currencies = $this->converter->get_available_currencies();
+        $selected   = $this->get_selected_currency();
+        $all        = VCC_Currency_Converter::get_all_currencies();
+        ?>
+        <div class="vcc-popup-overlay" id="vcc-popup-overlay" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e('Select currency', 'vignette-currency-converter'); ?>" style="display:none;">
+            <div class="vcc-popup">
+                <div class="vcc-popup-header">
+                    <span class="vcc-popup-title"><?php _e('Select currency', 'vignette-currency-converter'); ?></span>
+                    <button class="vcc-popup-close" aria-label="<?php esc_attr_e('Close', 'vignette-currency-converter'); ?>">&times;</button>
+                </div>
+                <div class="vcc-popup-grid">
+                    <?php foreach ($currencies as $currency) :
+                        $flag   = isset($all[$currency]) ? $all[$currency]['flag'] : '';
+                        $name   = isset($all[$currency]) ? $all[$currency]['name'] : $currency;
+                        $symbol = isset($all[$currency]) ? $all[$currency]['symbol'] : $currency;
+                        $is_selected = ($currency === $selected);
+                    ?>
+                    <div class="vcc-popup-option<?php echo $is_selected ? ' vcc-selected' : ''; ?>"
+                         data-currency="<?php echo esc_attr($currency); ?>"
+                         role="option" tabindex="0"
+                         aria-selected="<?php echo $is_selected ? 'true' : 'false'; ?>">
+                        <span class="vcc-popup-flag"><?php echo esc_html($flag); ?></span>
+                        <span class="vcc-popup-name"><?php echo esc_html($name); ?></span>
+                        <strong class="vcc-popup-symbol"><?php echo esc_html($symbol); ?></strong>
+                        <span class="vcc-popup-check">&#10003;</span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Display currency info in cart totals table
      */
     public function display_cart_currency_info() {
         $currency = $this->get_selected_currency();
+        if ($currency === 'GBP') return;
 
-        if ($currency === 'GBP') {
-            return;
-        }
+        $stripe_enabled = VCC_Stripe_Integration::get_instance()->is_enabled();
+        $name = $this->get_currency_name($currency);
 
         echo '<tr class="vcc-currency-info">';
-        echo '<th colspan="2" style="text-align: center; font-size: 12px; color: #666;">';
-        printf(
-            __('Prices displayed in %s. Payment will be processed in GBP.', 'vignette-currency-converter'),
-            esc_html($this->get_currency_name($currency))
-        );
-        echo '</th>';
-        echo '</tr>';
+        echo '<th colspan="2" style="text-align:center;font-size:12px;color:#666;">';
+        if ($stripe_enabled) {
+            printf(__('You will be charged in %s.', 'vignette-currency-converter'), esc_html($name));
+        } else {
+            printf(__('Prices displayed in %s. Payment will be processed in GBP.', 'vignette-currency-converter'), esc_html($name));
+        }
+        echo '</th></tr>';
     }
 
     /**
@@ -428,22 +460,23 @@ class VCC_Frontend_Display {
     }
 
     /**
-     * Display currency info on checkout page
+     * Display currency info on checkout order review
      */
     public function display_checkout_currency_info() {
         $currency = $this->get_selected_currency();
-        if ($currency === 'GBP') {
-            return;
-        }
+        if ($currency === 'GBP') return;
+
+        $stripe_enabled = VCC_Stripe_Integration::get_instance()->is_enabled();
+        $name = $this->get_currency_name($currency);
 
         echo '<tr class="vcc-currency-info">';
-        echo '<th colspan="2" style="text-align: center; font-size: 12px; color: #666; padding: 8px 0;">';
-        printf(
-            __('Prices shown in %s for reference. Payment is processed in GBP.', 'vignette-currency-converter'),
-            esc_html($this->get_currency_name($currency))
-        );
-        echo '</th>';
-        echo '</tr>';
+        echo '<th colspan="2" style="text-align:center;font-size:12px;color:#666;padding:8px 0;">';
+        if ($stripe_enabled) {
+            printf(__('Your payment will be charged in %s via Stripe.', 'vignette-currency-converter'), esc_html($name));
+        } else {
+            printf(__('Prices shown in %s for reference. Payment is processed in GBP.', 'vignette-currency-converter'), esc_html($name));
+        }
+        echo '</th></tr>';
     }
 
     /**

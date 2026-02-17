@@ -5,6 +5,28 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-17
+
+### Added
+- **Currency selector popup**: The currency selector is now a lightweight plain-text trigger (e.g. `£ GBP`) that opens a centered modal popup on click. No more `<select>` dropdown.
+- **Popup design**: 2-column grid of currency options, each showing an emoji flag, full currency name, and symbol. Selected currency is highlighted with a blue tint and a checkmark (✓).
+- **Accessibility**: Popup uses `role="dialog"`, `aria-modal="true"`, `aria-selected` on options, `tabindex`/keyboard navigation (Enter, Space to open/select; Escape to close).
+- **Multiple close methods**: × button in popup header, clicking the backdrop overlay, or pressing Escape all close the popup.
+- **Stripe-aware cart/checkout notices**: Cart and checkout now show context-sensitive messages — "You will be charged in [currency]" when Stripe multi-currency is enabled, or "Payment will be processed in GBP" when disabled.
+
+### Changed
+- **Selector trigger**: Replaced `<select>` element and "Currency:" label with a transparent `<span data-vcc-trigger>` that inherits the surrounding theme's font and colour — fits naturally into header nav bars, widget areas, and shortcode placements.
+- **Popup rendered once**: Popup HTML is output once via `wp_footer` (priority 20) and shared by all trigger instances on the page.
+- **CSS rewrite**: Removed all old fixed-position box, label, and `<select>` styles. New stylesheet covers trigger, popup overlay, popup panel, 2-column currency grid, selected state, and dark mode.
+- **JS rewrite**: Replaced `change` event on `[data-vcc-selector]` with click/keyboard handlers on `[data-vcc-trigger]`, `.vcc-popup-option`, `.vcc-popup-close`, and `#vcc-popup-overlay`. All trigger instances sync on currency change.
+- **Mobile popup**: On screens ≤ 480 px the popup slides up from the bottom (sheet style), full-width, single-column grid.
+
+### Technical
+- `render_selector()` now outputs `<span class="vcc-currency-trigger" data-vcc-trigger>` instead of `<select>`
+- `render_currency_popup()` method added to `VCC_Frontend_Display`; hooked to `wp_footer` at priority 20
+- JS: new methods `openPopup()`, `closePopup()`, `selectCurrency()`, `updateTriggerText()` replace old `handleCurrencyChange()`
+- `body.vcc-popup-open` class added while popup is visible (used to prevent body scroll)
+
 ## [1.3.0] - 2026-02-16
 
 ### Added

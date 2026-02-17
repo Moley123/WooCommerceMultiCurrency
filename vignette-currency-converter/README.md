@@ -238,6 +238,14 @@ A: The plugin uses cached rates as a fallback. If both the API and cache are una
 
 ## Changelog
 
+### Version 1.4.0
+- Currency selector redesigned as a plain-text trigger (`£ GBP`) that opens a centered popup modal on click — no more `<select>` dropdown
+- Popup shows all currencies in a 2-column grid: emoji flag, full name, symbol; selected currency highlighted with checkmark
+- Popup closes via × button, backdrop click, or Escape key; keyboard-accessible throughout
+- Cart and checkout notices are now Stripe-aware — "You will be charged in [currency]" when Stripe multi-currency is on, "Payment will be processed in GBP" when off
+- Mobile: popup slides up from bottom as a full-width sheet with single-column grid
+- Dark mode support for popup panel
+
 ### Version 1.3.0
 - Stripe multi-currency charging — toggleable; charges customers in selected currency, settles to GBP bank account
 - Exchange rate locked at checkout order creation; stored in order meta for accounting

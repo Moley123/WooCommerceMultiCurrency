@@ -1,181 +1,348 @@
 /**
  * Vignette Currency Converter - Frontend Styles
+ * Version 1.4.0 - Popup selector
  */
 
-/* Currency Selector Wrapper */
+/* =====================================================
+   Trigger (collapsed state)
+   ===================================================== */
+
 .vcc-currency-selector-wrapper {
-    margin: 20px 0;
-    padding: 15px;
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
 }
 
-.vcc-currency-label {
-    font-weight: 600;
-    font-size: 14px;
-    color: #333;
-    margin: 0;
-}
-
-.vcc-currency-selector {
-    padding: 8px 32px 8px 12px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #fff;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23333" d="M1.41 0L6 4.59L10.59 0L12 1.41l-6 6l-6-6z"/></svg>');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
+.vcc-currency-trigger {
+    display: inline-block;
     cursor: pointer;
-    min-width: 200px;
-    transition: border-color 0.2s ease;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: inherit;
+    color: inherit;
+    background: transparent;
+    border: none;
+    padding: 0;
+    line-height: inherit;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.vcc-currency-selector:hover {
-    border-color: #999;
+.vcc-currency-trigger:hover {
+    opacity: 0.75;
+    text-decoration: underline;
 }
 
-.vcc-currency-selector:focus {
-    outline: none;
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
+.vcc-currency-trigger:focus {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    border-radius: 2px;
 }
 
-.vcc-currency-selector:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.vcc-loading {
-    font-size: 12px;
-    color: #666;
-    font-style: italic;
-}
-
-/* Converted Price Display */
-.vcc-converted-price {
-    font-weight: 600;
-    color: #2271b1;
-}
-
-/* Cart Currency Info */
-.vcc-currency-info th {
-    padding: 10px;
-    background: #f8f9fa;
-    border-top: 1px solid #e0e0e0;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .vcc-currency-selector-wrapper {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .vcc-currency-selector {
-        width: 100%;
-        min-width: auto;
-    }
-}
-
-/* Global Selector - Fixed position bottom-right (default) */
+/* Global selector rendered in footer — inherits theme nav styles */
 .vcc-currency-selector-wrapper.vcc-global-selector {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 9999;
     margin: 0;
-    padding: 10px 14px;
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    background: #fff;
-    border: 1px solid #ddd;
-    flex-wrap: nowrap;
-    gap: 8px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
-.vcc-global-selector .vcc-currency-label {
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-.vcc-global-selector .vcc-currency-selector {
-    min-width: 150px;
-    padding: 5px 28px 5px 10px;
-    font-size: 13px;
-}
-
-/* Inline Selector - used by shortcode and widget */
+/* Inline shortcode/widget selector */
 .vcc-currency-selector-wrapper.vcc-inline-selector {
     margin: 0;
     padding: 0;
     background: transparent;
     border: none;
     box-shadow: none;
-    display: inline-flex;
 }
 
-/* Responsive: full-width bar at bottom on mobile */
-@media (max-width: 767px) {
-    .vcc-currency-selector-wrapper.vcc-global-selector {
-        bottom: 0;
-        right: 0;
-        left: 0;
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-        border-bottom: none;
-        justify-content: center;
-        padding: 10px 16px;
-    }
+/* =====================================================
+   Popup Overlay
+   ===================================================== */
 
-    .vcc-global-selector .vcc-currency-selector {
-        min-width: 160px;
-    }
+#vcc-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-/* Loading Animation */
+/* Prevent body scroll when popup is open */
+body.vcc-popup-open {
+    overflow: hidden;
+}
+
+/* =====================================================
+   Popup Panel
+   ===================================================== */
+
+.vcc-popup {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 520px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Popup Header */
+.vcc-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8e8e8;
+    flex-shrink: 0;
+}
+
+.vcc-popup-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111;
+    margin: 0;
+}
+
+.vcc-popup-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.vcc-popup-close:hover {
+    background: #f0f0f0;
+    color: #111;
+}
+
+/* =====================================================
+   Currency Grid
+   ===================================================== */
+
+.vcc-popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.vcc-popup-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.12s;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Right-column options get a left border to act as column divider */
+.vcc-popup-option:nth-child(even) {
+    border-left: 1px solid #f0f0f0;
+}
+
+.vcc-popup-option:hover {
+    background: #f7f7f7;
+}
+
+.vcc-popup-option:focus {
+    outline: none;
+    background: #eef4ff;
+}
+
+/* Selected state */
+.vcc-popup-option.vcc-selected {
+    background: #f0f6ff;
+}
+
+.vcc-popup-option.vcc-selected .vcc-popup-name {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+/* Flag */
+.vcc-popup-flag {
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+}
+
+/* Currency name */
+.vcc-popup-name {
+    font-size: 13px;
+    color: #333;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Symbol */
+.vcc-popup-symbol {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    flex-shrink: 0;
+}
+
+/* Checkmark — hidden by default, shown when selected */
+.vcc-popup-check {
+    font-size: 14px;
+    color: #2271b1;
+    opacity: 0;
+    flex-shrink: 0;
+    transition: opacity 0.1s;
+}
+
+.vcc-popup-option.vcc-selected .vcc-popup-check {
+    opacity: 1;
+}
+
+/* =====================================================
+   Price Display
+   ===================================================== */
+
+.vcc-converted-price {
+    font-weight: 600;
+    color: #2271b1;
+}
+
+/* =====================================================
+   Cart / Checkout Notice
+   ===================================================== */
+
+.vcc-currency-info th {
+    padding: 10px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* =====================================================
+   Loading Animation
+   ===================================================== */
+
 @keyframes vcc-pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
 }
 
 .vcc-loading {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
     animation: vcc-pulse 1.5s ease-in-out infinite;
 }
 
-/* Dark Mode Support */
+/* =====================================================
+   Mobile
+   ===================================================== */
+
+@media (max-width: 480px) {
+    #vcc-popup-overlay {
+        padding: 12px;
+        align-items: flex-end;
+    }
+
+    .vcc-popup {
+        max-width: 100%;
+        max-height: 90vh;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .vcc-popup-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Remove left-border "column divider" on mobile single-column */
+    .vcc-popup-option:nth-child(even) {
+        border-left: none;
+    }
+}
+
+/* =====================================================
+   Dark Mode Support
+   ===================================================== */
+
 @media (prefers-color-scheme: dark) {
-    .vcc-currency-selector-wrapper {
+    .vcc-popup {
+        background: #1e1e1e;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .vcc-popup-header {
+        border-bottom-color: #333;
+    }
+
+    .vcc-popup-title {
+        color: #f0f0f0;
+    }
+
+    .vcc-popup-close {
+        color: #aaa;
+    }
+
+    .vcc-popup-close:hover {
         background: #2a2a2a;
-        border-color: #444;
+        color: #f0f0f0;
     }
 
-    .vcc-currency-label {
-        color: #e0e0e0;
+    .vcc-popup-option {
+        border-bottom-color: #2a2a2a;
     }
 
-    .vcc-currency-selector {
-        background-color: #333;
-        color: #e0e0e0;
-        border-color: #555;
+    .vcc-popup-option:nth-child(even) {
+        border-left-color: #2a2a2a;
     }
 
-    .vcc-currency-selector:hover {
-        border-color: #777;
+    .vcc-popup-option:hover {
+        background: #2a2a2a;
+    }
+
+    .vcc-popup-option:focus {
+        background: #1d2a3a;
+    }
+
+    .vcc-popup-option.vcc-selected {
+        background: #162033;
+    }
+
+    .vcc-popup-name {
+        color: #ccc;
+    }
+
+    .vcc-popup-option.vcc-selected .vcc-popup-name {
+        color: #f0f0f0;
+    }
+
+    .vcc-popup-symbol {
+        color: #aaa;
+    }
+
+    .vcc-popup-check {
+        color: #5b9bd5;
     }
 
     .vcc-loading {
