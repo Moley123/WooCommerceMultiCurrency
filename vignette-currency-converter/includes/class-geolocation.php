@@ -133,19 +133,16 @@ class VCC_Geolocation {
             // Australia
             'AU' => 'AUD', // Australia
 
-            // Japan
-            'JP' => 'JPY', // Japan
-
-            // Additional European countries (non-Euro)
-            'DK' => 'EUR', // Denmark (default to EUR for simplicity)
-            'SE' => 'EUR', // Sweden (default to EUR for simplicity)
-            'NO' => 'EUR', // Norway (default to EUR for simplicity)
-            'PL' => 'EUR', // Poland (default to EUR for simplicity)
-            'CZ' => 'EUR', // Czech Republic (default to EUR for simplicity)
-            'HU' => 'EUR', // Hungary (default to EUR for simplicity)
-            'RO' => 'EUR', // Romania (default to EUR for simplicity)
-            'BG' => 'EUR', // Bulgaria (default to EUR for simplicity)
-            'HR' => 'EUR', // Croatia
+            // Additional European countries (non-Euro) — mapped to their actual currencies
+            'DK' => 'DKK', // Denmark
+            'SE' => 'SEK', // Sweden
+            'NO' => 'NOK', // Norway
+            'PL' => 'PLN', // Poland
+            'CZ' => 'CZK', // Czech Republic
+            'HU' => 'HUF', // Hungary
+            'RO' => 'RON', // Romania
+            'BG' => 'BGN', // Bulgaria
+            'HR' => 'EUR', // Croatia (joined Eurozone January 2023)
         );
 
         // Allow filtering of country-to-currency mapping
