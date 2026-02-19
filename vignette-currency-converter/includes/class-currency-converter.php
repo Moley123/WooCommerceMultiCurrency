@@ -711,20 +711,35 @@ class VCC_Currency_Converter {
      */
     public static function get_all_currencies() {
         return array(
-            'GBP' => array('flag' => '🇬🇧', 'name' => 'British Pound',      'symbol' => '£'),
-            'EUR' => array('flag' => '🇪🇺', 'name' => 'Euro',                'symbol' => '€'),
-            'USD' => array('flag' => '🇺🇸', 'name' => 'US Dollar',           'symbol' => '$'),
-            'CHF' => array('flag' => '🇨🇭', 'name' => 'Swiss Franc',         'symbol' => 'CHF'),
-            'NOK' => array('flag' => '🇳🇴', 'name' => 'Norwegian Krone',     'symbol' => 'NOK'),
-            'SEK' => array('flag' => '🇸🇪', 'name' => 'Swedish Krona',       'symbol' => 'SEK'),
-            'DKK' => array('flag' => '🇩🇰', 'name' => 'Danish Krone',        'symbol' => 'DKK'),
-            'PLN' => array('flag' => '🇵🇱', 'name' => 'Polish Zloty',        'symbol' => 'zł'),
-            'CZK' => array('flag' => '🇨🇿', 'name' => 'Czech Koruna',        'symbol' => 'Kč'),
-            'HUF' => array('flag' => '🇭🇺', 'name' => 'Hungarian Forint',    'symbol' => 'Ft'),
-            'RON' => array('flag' => '🇷🇴', 'name' => 'Romanian Leu',        'symbol' => 'lei'),
-            'BGN' => array('flag' => '🇧🇬', 'name' => 'Bulgarian Lev',       'symbol' => 'лв'),
-            'CAD' => array('flag' => '🇨🇦', 'name' => 'Canadian Dollar',     'symbol' => 'CA$'),
-            'AUD' => array('flag' => '🇦🇺', 'name' => 'Australian Dollar',   'symbol' => 'A$'),
+            'GBP' => array('flag' => '🇬🇧', 'name' => 'British Pound',               'symbol' => '£'),
+            'EUR' => array('flag' => '🇪🇺', 'name' => 'Euro',                        'symbol' => '€'),
+            'USD' => array('flag' => '🇺🇸', 'name' => 'US Dollar',                   'symbol' => '$'),
+            'CHF' => array('flag' => '🇨🇭', 'name' => 'Swiss Franc',                 'symbol' => 'CHF'),
+            'NOK' => array('flag' => '🇳🇴', 'name' => 'Norwegian Krone',             'symbol' => 'NOK'),
+            'SEK' => array('flag' => '🇸🇪', 'name' => 'Swedish Krona',               'symbol' => 'SEK'),
+            'DKK' => array('flag' => '🇩🇰', 'name' => 'Danish Krone',                'symbol' => 'DKK'),
+            'PLN' => array('flag' => '🇵🇱', 'name' => 'Polish Zloty',                'symbol' => 'zł'),
+            'CZK' => array('flag' => '🇨🇿', 'name' => 'Czech Koruna',                'symbol' => 'Kč'),
+            'HUF' => array('flag' => '🇭🇺', 'name' => 'Hungarian Forint',            'symbol' => 'Ft'),
+            'RON' => array('flag' => '🇷🇴', 'name' => 'Romanian Leu',                'symbol' => 'lei'),
+            'BGN' => array('flag' => '🇧🇬', 'name' => 'Bulgarian Lev',               'symbol' => 'лв'),
+            'CAD' => array('flag' => '🇨🇦', 'name' => 'Canadian Dollar',             'symbol' => 'CA$'),
+            'AUD' => array('flag' => '🇦🇺', 'name' => 'Australian Dollar',           'symbol' => 'A$'),
+            // Balkans & Eastern Europe
+            'RSD' => array('flag' => '🇷🇸', 'name' => 'Serbian Dinar',               'symbol' => 'din.'),
+            'ALL' => array('flag' => '🇦🇱', 'name' => 'Albanian Lek',                'symbol' => 'L'),
+            'BAM' => array('flag' => '🇧🇦', 'name' => 'Bosnia-Herzegovina Mark',     'symbol' => 'KM'),
+            'MKD' => array('flag' => '🇲🇰', 'name' => 'Macedonian Denar',            'symbol' => 'ден'),
+            'MDL' => array('flag' => '🇲🇩', 'name' => 'Moldovan Leu',                'symbol' => 'MDL'),
+            // Eastern Europe & Caucasus
+            'UAH' => array('flag' => '🇺🇦', 'name' => 'Ukrainian Hryvnia',           'symbol' => '₴'),
+            'BYN' => array('flag' => '🇧🇾', 'name' => 'Belarusian Ruble',            'symbol' => 'Br'),
+            'RUB' => array('flag' => '🇷🇺', 'name' => 'Russian Ruble',               'symbol' => '₽'),
+            'GEL' => array('flag' => '🇬🇪', 'name' => 'Georgian Lari',               'symbol' => '₾'),
+            'AMD' => array('flag' => '🇦🇲', 'name' => 'Armenian Dram',               'symbol' => '֏'),
+            'AZN' => array('flag' => '🇦🇿', 'name' => 'Azerbaijani Manat',           'symbol' => '₼'),
+            // Turkey
+            'TRY' => array('flag' => '🇹🇷', 'name' => 'Turkish Lira',               'symbol' => '₺'),
         );
     }
 
