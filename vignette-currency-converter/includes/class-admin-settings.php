@@ -39,14 +39,30 @@ class VCC_Admin_Settings {
     }
 
     /**
-     * Add settings page to admin menu
+     * Add settings page under the shared EMEL WP Plugins top-level menu.
+     * Creates the top-level menu only if no other EMEL plugin has done so already.
      */
     public function add_settings_page() {
+        $parent_slug = 'emel-wp-plugins';
+
+        if ( ! isset( $GLOBALS['admin_page_hooks'][ $parent_slug ] ) ) {
+            add_menu_page(
+                'EMEL WP Plugins',
+                'EMEL WP Plugins',
+                'manage_options',
+                $parent_slug,
+                '__return_null',
+                'dashicons-admin-plugins',
+                58
+            );
+            remove_submenu_page( $parent_slug, $parent_slug );
+        }
+
         add_submenu_page(
-            'woocommerce',
+            $parent_slug,
             __('Vignette Currency Converter', 'vignette-currency-converter'),
             __('Currency Converter', 'vignette-currency-converter'),
-            'manage_woocommerce',
+            'manage_options',
             'vcc-settings',
             array($this, 'render_settings_page')
         );
