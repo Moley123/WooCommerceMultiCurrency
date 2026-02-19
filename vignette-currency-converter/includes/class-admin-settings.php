@@ -36,6 +36,7 @@ class VCC_Admin_Settings {
         add_action('wp_ajax_vcc_test_api', array($this, 'ajax_test_api'));
         add_action('wp_ajax_vcc_clear_cache', array($this, 'ajax_clear_cache'));
         add_action('wp_ajax_vcc_update_all_prices', array($this, 'ajax_update_all_prices'));
+        add_action('wp_ajax_vcc_run_analytics_cleanup', array($this, 'ajax_run_analytics_cleanup'));
     }
 
     /**
@@ -120,6 +121,12 @@ class VCC_Admin_Settings {
 
         // Stripe multi-currency
         $sanitized['stripe_multicurrency_enabled'] = isset($input['stripe_multicurrency_enabled']) ? 'yes' : 'no';
+
+        // Analytics
+        $sanitized['analytics_enabled']        = isset($input['analytics_enabled']) ? 'yes' : 'no';
+        $valid_retention = array(7, 14, 30, 90, 180, 365, 0);
+        $retention = isset($input['analytics_retention_days']) ? (int) $input['analytics_retention_days'] : 90;
+        $sanitized['analytics_retention_days'] = in_array($retention, $valid_retention) ? $retention : 90;
 
         return $sanitized;
     }
@@ -514,6 +521,67 @@ class VCC_Admin_Settings {
                             </td>
                         </tr>
 
+                        <!-- Analytics Settings -->
+                        <tr>
+                            <th colspan="2">
+                                <h2><?php _e('Analytics', 'vignette-currency-converter'); ?></h2>
+                            </th>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="analytics_enabled"><?php _e('Enable Analytics Logging', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        id="analytics_enabled"
+                                        name="vcc_settings[analytics_enabled]"
+                                        value="yes"
+                                        <?php checked($this->settings['analytics_enabled'] ?? 'yes', 'yes'); ?>
+                                    />
+                                    <?php _e('Log currency switch and checkout events', 'vignette-currency-converter'); ?>
+                                </label>
+                                <p class="description">
+                                    <?php _e('Records every currency change (masked IP, country, city, page, device). IP geolocation uses ip-api.com and is cached for 24 hours.', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="analytics_retention_days"><?php _e('Data Retention', 'vignette-currency-converter'); ?></label>
+                            </th>
+                            <td>
+                                <select id="analytics_retention_days" name="vcc_settings[analytics_retention_days]">
+                                    <?php
+                                    $retention = (int) ($this->settings['analytics_retention_days'] ?? 90);
+                                    $options = array(
+                                        7   => __('7 days',   'vignette-currency-converter'),
+                                        14  => __('14 days',  'vignette-currency-converter'),
+                                        30  => __('30 days',  'vignette-currency-converter'),
+                                        90  => __('90 days',  'vignette-currency-converter'),
+                                        180 => __('180 days', 'vignette-currency-converter'),
+                                        365 => __('1 year',   'vignette-currency-converter'),
+                                        0   => __('Keep forever', 'vignette-currency-converter'),
+                                    );
+                                    foreach ($options as $days => $label) {
+                                        printf(
+                                            '<option value="%d" %s>%s</option>',
+                                            $days,
+                                            selected($retention, $days, false),
+                                            esc_html($label)
+                                        );
+                                    }
+                                    ?>
+                                </select>
+                                <p class="description">
+                                    <?php _e('Events older than this are deleted automatically each day.', 'vignette-currency-converter'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
                         <!-- Bulk Actions -->
                         <tr>
                             <th colspan="2">
@@ -543,6 +611,8 @@ class VCC_Admin_Settings {
 
                 <?php submit_button(__('Save Settings', 'vignette-currency-converter')); ?>
             </form>
+
+            <?php $this->render_analytics_section(); ?>
         </div>
 
         <script>
@@ -698,6 +768,267 @@ class VCC_Admin_Settings {
         });
         </script>
         <?php
+    }
+
+    /**
+     * Render the analytics summary + events table below the settings form.
+     */
+    private function render_analytics_section() {
+        if (!class_exists('VCC_Analytics')) return;
+
+        $analytics = VCC_Analytics::get_instance();
+        $summary   = $analytics->get_summary();
+
+        // Pagination
+        $current_page = isset($_GET['vcc_analytics_page']) ? max(1, (int) $_GET['vcc_analytics_page']) : 1;
+        $per_page     = 25;
+        $type_filter  = isset($_GET['vcc_analytics_type']) ? sanitize_text_field($_GET['vcc_analytics_type']) : '';
+        $data         = $analytics->get_events($current_page, $per_page, $type_filter);
+        $total_pages  = $data['total'] > 0 ? (int) ceil($data['total'] / $per_page) : 1;
+
+        $nonce = wp_create_nonce('vcc_admin_nonce');
+        ?>
+        <hr style="margin: 30px 0;" />
+        <h2><?php _e('Currency Usage Analytics', 'vignette-currency-converter'); ?></h2>
+
+        <!-- Summary cards -->
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
+            <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:160px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#2271b1;"><?php echo number_format($summary['total_switches']); ?></div>
+                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Currency Switches', 'vignette-currency-converter'); ?></div>
+            </div>
+            <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:160px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#46b450;"><?php echo number_format($summary['total_checkouts']); ?></div>
+                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Non-GBP Checkouts', 'vignette-currency-converter'); ?></div>
+            </div>
+            <?php if (!empty($summary['by_currency'])) : $top = $summary['by_currency'][0]; ?>
+            <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:160px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#333;"><?php echo esc_html($top['currency_to']); ?></div>
+                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Most Switched To', 'vignette-currency-converter'); ?></div>
+            </div>
+            <?php endif; ?>
+            <?php if ($summary['oldest']) : ?>
+            <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:200px;text-align:center;">
+                <div style="font-size:13px;font-weight:600;color:#333;"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($summary['oldest']))); ?></div>
+                <div style="font-size:11px;color:#666;">→ <?php echo esc_html(date_i18n(get_option('date_format'), strtotime($summary['newest']))); ?></div>
+                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Date Range', 'vignette-currency-converter'); ?></div>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Top currencies + countries side by side -->
+        <?php if (!empty($summary['by_currency']) || !empty($summary['by_country'])) : ?>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
+            <?php if (!empty($summary['by_currency'])) : ?>
+            <div style="flex:1;min-width:220px;">
+                <h3 style="margin:0 0 8px;"><?php _e('Top Currencies', 'vignette-currency-converter'); ?></h3>
+                <table class="widefat fixed striped" style="max-width:300px;">
+                    <thead><tr>
+                        <th><?php _e('Currency', 'vignette-currency-converter'); ?></th>
+                        <th style="text-align:right;"><?php _e('Switches', 'vignette-currency-converter'); ?></th>
+                    </tr></thead>
+                    <tbody>
+                    <?php foreach ($summary['by_currency'] as $row) : ?>
+                        <tr>
+                            <td><?php echo esc_html($row['currency_to']); ?></td>
+                            <td style="text-align:right;"><?php echo number_format((int)$row['cnt']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($summary['by_country'])) : ?>
+            <div style="flex:1;min-width:220px;">
+                <h3 style="margin:0 0 8px;"><?php _e('Top Countries', 'vignette-currency-converter'); ?></h3>
+                <table class="widefat fixed striped" style="max-width:300px;">
+                    <thead><tr>
+                        <th><?php _e('Country', 'vignette-currency-converter'); ?></th>
+                        <th style="text-align:right;"><?php _e('Switches', 'vignette-currency-converter'); ?></th>
+                    </tr></thead>
+                    <tbody>
+                    <?php foreach ($summary['by_country'] as $row) : ?>
+                        <tr>
+                            <td><?php echo esc_html($row['country']); ?></td>
+                            <td style="text-align:right;"><?php echo number_format((int)$row['cnt']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Events table controls -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+                <strong><?php _e('Recent Events', 'vignette-currency-converter'); ?></strong>
+                <?php
+                $base_url   = admin_url('admin.php?page=vcc-settings');
+                $filter_url = add_query_arg(array('vcc_analytics_page' => 1), $base_url);
+                ?>
+                <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', '', $filter_url)); ?>"
+                   style="<?php echo !$type_filter ? 'font-weight:600;' : ''; ?>">
+                    <?php _e('All', 'vignette-currency-converter'); ?>
+                </a>
+                <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', 'switch', $filter_url)); ?>"
+                   style="<?php echo $type_filter === 'switch' ? 'font-weight:600;' : ''; ?>">
+                    <?php _e('Switches', 'vignette-currency-converter'); ?>
+                </a>
+                <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', 'checkout', $filter_url)); ?>"
+                   style="<?php echo $type_filter === 'checkout' ? 'font-weight:600;' : ''; ?>">
+                    <?php _e('Checkouts', 'vignette-currency-converter'); ?>
+                </a>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button type="button" id="vcc-run-cleanup" class="button">
+                    <?php _e('Run Cleanup Now', 'vignette-currency-converter'); ?>
+                </button>
+                <button type="button" id="vcc-clear-analytics" class="button button-secondary"
+                        style="color:#d63638;border-color:#d63638;">
+                    <?php _e('Clear All Data', 'vignette-currency-converter'); ?>
+                </button>
+                <span id="vcc-analytics-result"></span>
+            </div>
+        </div>
+
+        <!-- Events table -->
+        <?php if (empty($data['rows'])) : ?>
+            <p style="color:#666;"><?php _e('No events recorded yet.', 'vignette-currency-converter'); ?></p>
+        <?php else : ?>
+        <table class="widefat fixed striped" style="font-size:13px;">
+            <thead><tr>
+                <th style="width:140px;"><?php _e('Date / Time', 'vignette-currency-converter'); ?></th>
+                <th style="width:80px;"><?php _e('Type', 'vignette-currency-converter'); ?></th>
+                <th style="width:100px;"><?php _e('From → To', 'vignette-currency-converter'); ?></th>
+                <th style="width:120px;"><?php _e('Location', 'vignette-currency-converter'); ?></th>
+                <th style="width:80px;"><?php _e('IP', 'vignette-currency-converter'); ?></th>
+                <th style="width:70px;"><?php _e('Device', 'vignette-currency-converter'); ?></th>
+                <th><?php _e('Page', 'vignette-currency-converter'); ?></th>
+                <th style="width:60px;"><?php _e('User', 'vignette-currency-converter'); ?></th>
+            </tr></thead>
+            <tbody>
+            <?php foreach ($data['rows'] as $row) : ?>
+                <tr>
+                    <td><?php echo esc_html(date_i18n('d M Y H:i', strtotime($row['created_at']))); ?></td>
+                    <td>
+                        <?php if ($row['event_type'] === 'checkout') : ?>
+                            <span style="background:#46b450;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">checkout</span>
+                        <?php else : ?>
+                            <span style="background:#2271b1;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">switch</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($row['currency_from']) : ?>
+                            <?php echo esc_html($row['currency_from']); ?> → <?php echo esc_html($row['currency_to']); ?>
+                        <?php else : ?>
+                            <?php echo esc_html($row['currency_to']); ?>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php
+                        $parts = array_filter(array($row['city'], $row['country']));
+                        echo esc_html(implode(', ', $parts) ?: '—');
+                        ?>
+                    </td>
+                    <td style="font-family:monospace;font-size:11px;"><?php echo esc_html($row['ip_masked'] ?: '—'); ?></td>
+                    <td><?php echo esc_html($row['device_type'] ?: '—'); ?></td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        <?php if ($row['page_url']) : ?>
+                            <a href="<?php echo esc_url($row['page_url']); ?>" target="_blank" title="<?php echo esc_attr($row['page_url']); ?>">
+                                <?php echo esc_html(parse_url($row['page_url'], PHP_URL_PATH) ?: $row['page_url']); ?>
+                            </a>
+                        <?php else : ?>
+                            —
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php
+                        if ($row['user_id'] > 0) {
+                            $user = get_userdata($row['user_id']);
+                            echo $user ? esc_html($user->user_login) : '#' . (int)$row['user_id'];
+                        } else {
+                            echo 'guest';
+                        }
+                        ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <?php if ($total_pages > 1) : ?>
+        <div style="margin-top:12px;display:flex;gap:6px;align-items:center;">
+            <?php
+            $page_base = add_query_arg(
+                array('vcc_analytics_type' => $type_filter ?: false),
+                $base_url
+            );
+            for ($p = 1; $p <= $total_pages; $p++) :
+                $url = add_query_arg('vcc_analytics_page', $p, $page_base);
+                if ($p === $current_page) :
+            ?>
+                <span style="padding:4px 10px;background:#2271b1;color:#fff;border-radius:3px;"><?php echo $p; ?></span>
+            <?php else : ?>
+                <a href="<?php echo esc_url($url); ?>" style="padding:4px 10px;background:#f0f0f0;border-radius:3px;text-decoration:none;"><?php echo $p; ?></a>
+            <?php
+                endif;
+            endfor;
+            ?>
+            <span style="color:#666;font-size:12px;">
+                <?php printf(
+                    __('Showing %d of %d events', 'vignette-currency-converter'),
+                    count($data['rows']),
+                    $data['total']
+                ); ?>
+            </span>
+        </div>
+        <?php endif; ?>
+
+        <?php endif; // end if rows ?>
+
+        <script>
+        jQuery(document).ready(function($) {
+            var nonce = '<?php echo esc_js($nonce); ?>';
+
+            $('#vcc-clear-analytics').on('click', function() {
+                if (!confirm('<?php esc_js(_e('Delete all analytics data permanently? This cannot be undone.', 'vignette-currency-converter')); ?>')) return;
+                var $btn = $(this).prop('disabled', true);
+                $.post(ajaxurl, { action: 'vcc_clear_analytics', nonce: nonce }, function(r) {
+                    if (r.success) {
+                        $('#vcc-analytics-result').html('<span style="color:green;">✓ ' + r.data.message + '</span>');
+                        setTimeout(function() { window.location.reload(); }, 1000);
+                    }
+                }).always(function() { $btn.prop('disabled', false); });
+            });
+
+            $('#vcc-run-cleanup').on('click', function() {
+                var $btn = $(this).prop('disabled', true);
+                $.post(ajaxurl, { action: 'vcc_run_analytics_cleanup', nonce: nonce }, function(r) {
+                    if (r.success) {
+                        $('#vcc-analytics-result').html('<span style="color:green;">✓ ' + r.data.message + '</span>');
+                        setTimeout(function() { window.location.reload(); }, 1000);
+                    }
+                }).always(function() { $btn.prop('disabled', false); });
+            });
+        });
+        </script>
+        <?php
+    }
+
+    /**
+     * AJAX: Run analytics cleanup immediately (respects retention setting).
+     */
+    public function ajax_run_analytics_cleanup() {
+        check_ajax_referer('vcc_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Insufficient permissions', 'vignette-currency-converter')));
+        }
+        VCC_Analytics::get_instance()->cleanup_old_events();
+        wp_send_json_success(array('message' => __('Cleanup complete', 'vignette-currency-converter')));
     }
 
     /**

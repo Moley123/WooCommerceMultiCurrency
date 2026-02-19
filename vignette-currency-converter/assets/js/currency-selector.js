@@ -406,6 +406,8 @@
                 data: {
                     action: 'vcc_change_currency',
                     currency: currency,
+                    currency_from: this.previousCurrency || '',
+                    page_url: window.location.href,
                     nonce: vccData.nonce,
                     manual_override: true
                 },

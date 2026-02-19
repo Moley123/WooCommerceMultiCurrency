@@ -5,6 +5,24 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-02-19
+
+### Added
+- **Analytics logging**: Every manual currency switch and every non-GBP checkout is recorded in a new `wp_vcc_currency_events` database table.
+- **Per-event data**: event type (switch/checkout), currency switched from/to, masked IP (`81.*.*.*`), country, city (via ip-api.com, cached 24 h per IP in a separate transient), page URL, device type (mobile/desktop), user ID (0 for guests).
+- **Analytics section in admin settings**: Summary cards (total switches, non-GBP checkouts, most popular currency, date range), top-10 currencies and countries tables, paginated events table (25 rows/page) with type/switch/checkout filter links.
+- **Data retention setting**: Choose 7, 14, 30, 90, 180, 365 days, or keep forever. Cleanup runs automatically via daily WP-Cron.
+- **Clear All Data button**: Truncates the events table immediately (with confirmation prompt).
+- **Run Cleanup Now button**: Applies the retention window on demand without waiting for the cron run.
+- **Analytics enable/disable toggle**: Can turn off logging without uninstalling.
+- **DB table auto-provisioned**: `dbDelta` runs on every plugin init when the DB version changes, so updates on manually-uploaded installs also get the table.
+
+### Technical
+- New file: `includes/class-analytics.php` — `VCC_Analytics` singleton
+- `ajax_change_currency()` now accepts `currency_from` and `page_url` POST params and calls `VCC_Analytics::log_switch_event()`
+- JS `updateSession()` now passes `currency_from` (previous selection) and `page_url` (`window.location.href`) in the AJAX payload
+- WP-Cron event `vcc_analytics_cleanup` registered on init; unscheduled on plugin deactivation
+
 ## [1.4.2] - 2026-02-17
 
 ### Changed

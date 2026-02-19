@@ -3,7 +3,7 @@
  * Plugin Name: Vignette Currency Converter
  * Plugin URI: https://github.com/Moley123/WooCommerceMultiCurrency
  * Description: Multi-currency support for vignette products with ExchangeRate-API integration
- * Version: 1.4.2
+ * Version: 1.5.0
  * Author: Mark Lebrett
  * Author URI: https://marklebrett.co.uk
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('VCC_VERSION', '1.4.2');
+define('VCC_VERSION', '1.5.0');
 define('VCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('VCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('VCC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -47,6 +47,7 @@ require_once VCC_PLUGIN_DIR . 'includes/class-admin-settings.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-frontend-display.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-geolocation.php';
 require_once VCC_PLUGIN_DIR . 'includes/class-stripe-integration.php';
+require_once VCC_PLUGIN_DIR . 'includes/class-analytics.php';
 
 /**
  * Main plugin class
@@ -89,6 +90,14 @@ class Vignette_Currency_Converter {
         VCC_Admin_Settings::get_instance();
         VCC_Frontend_Display::get_instance();
         VCC_Stripe_Integration::get_instance();
+        $analytics = VCC_Analytics::get_instance();
+
+        // Ensure the analytics table exists on every init (handles plugin updates
+        // on sites where the activation hook didn't run, e.g. manual file upload).
+        if (get_option('vcc_analytics_db_version') !== VCC_VERSION) {
+            $analytics->create_table();
+            update_option('vcc_analytics_db_version', VCC_VERSION);
+        }
     }
 
     public function activate() {
@@ -109,6 +118,9 @@ class Vignette_Currency_Converter {
             add_option('vcc_settings', $default_options);
         }
 
+        // Create analytics table
+        VCC_Analytics::get_instance()->create_table();
+
         // Flush rewrite rules
         flush_rewrite_rules();
     }
@@ -118,6 +130,12 @@ class Vignette_Currency_Converter {
         global $wpdb;
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_vcc_rate_%'");
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_vcc_rate_%'");
+
+        // Cancel analytics cron job
+        $timestamp = wp_next_scheduled('vcc_analytics_cleanup');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'vcc_analytics_cleanup');
+        }
 
         // Flush rewrite rules
         flush_rewrite_rules();

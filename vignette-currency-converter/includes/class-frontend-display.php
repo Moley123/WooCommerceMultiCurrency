@@ -522,7 +522,9 @@ class VCC_Frontend_Display {
     public function ajax_change_currency() {
         check_ajax_referer('vcc_currency_switch', 'nonce');
 
-        $currency = isset($_POST['currency']) ? sanitize_text_field($_POST['currency']) : 'GBP';
+        $currency        = isset($_POST['currency'])      ? sanitize_text_field($_POST['currency'])      : 'GBP';
+        $currency_from   = isset($_POST['currency_from']) ? sanitize_text_field($_POST['currency_from']) : '';
+        $page_url        = isset($_POST['page_url'])      ? esc_url_raw($_POST['page_url'])              : '';
         $manual_override = isset($_POST['manual_override']) && $_POST['manual_override'] === 'true';
 
         // Validate currency
@@ -545,6 +547,11 @@ class VCC_Frontend_Display {
         }
 
         $this->selected_currency = $currency;
+
+        // Log the switch event
+        if ($manual_override && class_exists('VCC_Analytics')) {
+            VCC_Analytics::get_instance()->log_switch_event($currency_from, $currency, $page_url);
+        }
 
         wp_send_json_success(array(
             'message' => __('Currency updated', 'vignette-currency-converter'),

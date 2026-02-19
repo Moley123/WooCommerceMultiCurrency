@@ -238,6 +238,12 @@ A: The plugin uses cached rates as a fallback. If both the API and cache are una
 
 ## Changelog
 
+### Version 1.5.0
+- Added: Lightweight analytics logging — every currency switch and non-GBP checkout is recorded (masked IP, country, city, page URL, device type, user)
+- Added: Analytics section in admin settings with summary stats, top currencies/countries tables, and paginated events table
+- Added: Data retention setting (7–365 days or forever), daily auto-cleanup via WP-Cron, Clear All Data and Run Cleanup Now buttons
+- Added: Analytics can be disabled without uninstalling the plugin
+
 ### Version 1.4.2
 - Changed: Selecting a currency now reloads the page after saving the session, ensuring all prices are server-rendered in the correct currency (eliminates WCEPO re-render race condition)
 
