@@ -150,12 +150,26 @@ class VCC_Admin_Settings {
         }
 
         $this->settings = get_option('vcc_settings', array());
+
+        $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'settings';
         ?>
         <div class="wrap">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
 
             <?php settings_errors('vcc_messages'); ?>
 
+            <nav class="nav-tab-wrapper" style="margin-bottom:20px;">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=vcc-settings&tab=settings')); ?>"
+                   class="nav-tab <?php echo $current_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Settings', 'vignette-currency-converter'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=vcc-settings&tab=analytics')); ?>"
+                   class="nav-tab <?php echo $current_tab === 'analytics' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Analytics', 'vignette-currency-converter'); ?>
+                </a>
+            </nav>
+
+            <?php if ($current_tab === 'settings') : ?>
             <form method="post" action="options.php">
                 <?php
                 settings_fields('vcc_settings_group');
@@ -611,8 +625,11 @@ class VCC_Admin_Settings {
 
                 <?php submit_button(__('Save Settings', 'vignette-currency-converter')); ?>
             </form>
+            <?php endif; // end settings tab ?>
 
-            <?php $this->render_analytics_section(); ?>
+            <?php if ($current_tab === 'analytics') : ?>
+                <?php $this->render_analytics_section(); ?>
+            <?php endif; // end analytics tab ?>
         </div>
 
         <script>
@@ -795,7 +812,11 @@ class VCC_Admin_Settings {
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
             <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:160px;text-align:center;">
                 <div style="font-size:28px;font-weight:700;color:#2271b1;"><?php echo number_format($summary['total_switches']); ?></div>
-                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Currency Switches', 'vignette-currency-converter'); ?></div>
+                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Manual Switches', 'vignette-currency-converter'); ?></div>
+            </div>
+            <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:160px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#f57c00;"><?php echo number_format($summary['total_auto_switches']); ?></div>
+                <div style="font-size:12px;color:#666;margin-top:4px;"><?php _e('Auto Switches', 'vignette-currency-converter'); ?></div>
             </div>
             <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px 24px;min-width:160px;text-align:center;">
                 <div style="font-size:28px;font-weight:700;color:#46b450;"><?php echo number_format($summary['total_checkouts']); ?></div>
@@ -875,7 +896,11 @@ class VCC_Admin_Settings {
                 </a>
                 <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', 'switch', $filter_url)); ?>"
                    style="<?php echo $type_filter === 'switch' ? 'font-weight:600;' : ''; ?>">
-                    <?php _e('Switches', 'vignette-currency-converter'); ?>
+                    <?php _e('Manual', 'vignette-currency-converter'); ?>
+                </a>
+                <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', 'auto_switch', $filter_url)); ?>"
+                   style="<?php echo $type_filter === 'auto_switch' ? 'font-weight:600;' : ''; ?>">
+                    <?php _e('Auto', 'vignette-currency-converter'); ?>
                 </a>
                 <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', 'checkout', $filter_url)); ?>"
                    style="<?php echo $type_filter === 'checkout' ? 'font-weight:600;' : ''; ?>">
@@ -916,8 +941,10 @@ class VCC_Admin_Settings {
                     <td>
                         <?php if ($row['event_type'] === 'checkout') : ?>
                             <span style="background:#46b450;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">checkout</span>
+                        <?php elseif ($row['event_type'] === 'auto_switch') : ?>
+                            <span style="background:#f57c00;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">auto</span>
                         <?php else : ?>
-                            <span style="background:#2271b1;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">switch</span>
+                            <span style="background:#2271b1;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">manual</span>
                         <?php endif; ?>
                     </td>
                     <td>

@@ -20,6 +20,7 @@ A WordPress/WooCommerce plugin for multi-currency support designed specifically 
 - **Automatic Price Updates**: Bulk update all product prices when exchange rates change
 - **WCEPO Compatible**: Full compatibility with WooCommerce Extra Product Options via priority-999 filters and JS fallback
 - **Responsive Design**: Mobile-friendly currency selector (full-width bar on mobile)
+- **Analytics Tracking**: Lightweight logging of manual currency switches, auto-detected currency switches, and non-GBP checkouts with masked IP, geolocation, device type, and configurable data retention
 
 ## Supported Currencies
 

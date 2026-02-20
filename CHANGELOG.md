@@ -5,6 +5,26 @@ All notable changes to the Vignette Currency Converter plugin will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-02-20
+
+### Added
+- **Auto-switch tracking**: IP geolocation-based currency auto-detection is now logged separately as `event_type = 'auto_switch'` in the analytics table. Auto-switches are deduplicated per session (only the first auto-detection is logged, not every page refresh).
+- **Analytics dashboard tabs**: Settings and Analytics are now separate tabs on the admin page for better organization. Analytics data no longer appears below the settings form.
+- **Auto Switches summary card**: Analytics dashboard now shows Manual Switches (blue), Auto Switches (orange), and Non-GBP Checkouts (green) as separate summary cards.
+- **Manual/Auto filter links**: Events table filter links changed from "All / Switches / Checkouts" to "All / Manual / Auto / Checkouts" for granular filtering.
+- **Auto-switch badge**: Events table rows with `event_type = 'auto_switch'` display an orange "auto" badge instead of blue "manual".
+
+### Changed
+- **Summary card labels**: "Currency Switches" card renamed to "Manual Switches" to distinguish from auto-detected switches.
+- **Top Currencies/Countries aggregates**: Now include both manual and auto switches (all `event_type IN ('switch', 'auto_switch')` rows).
+- **From → To display**: Auto-switch events show `GBP → [detected currency]` in the events table (GBP is the base/default currency).
+
+### Technical
+- New method: `VCC_Analytics::log_auto_switch_event($currency_to)` — logs with `event_type = 'auto_switch'`, `currency_from = 'GBP'`
+- `VCC_Frontend_Display::auto_detect_currency()` now calls analytics logging after storing the detected currency in session, only if the session value is new
+- `VCC_Analytics::get_summary()` updated to count `total_auto_switches` separately and include both event types in currency/country aggregates
+- `VCC_Admin_Settings::render_settings_page()` implements tab navigation using `?tab=` query parameter; conditionally renders settings form or analytics dashboard based on active tab
+
 ## [1.5.0] - 2026-02-19
 
 ### Added

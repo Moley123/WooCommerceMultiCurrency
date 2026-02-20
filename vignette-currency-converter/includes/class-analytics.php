@@ -115,6 +115,21 @@ class VCC_Analytics {
     }
 
     /**
+     * Log an auto-detected currency switch (IP geolocation).
+     *
+     * @param string $currency_to Auto-detected currency code
+     */
+    public function log_auto_switch_event($currency_to) {
+        // currency_from is GBP (base currency)
+        // page_url is the landing page where auto-detection happened
+        $page_url = isset($_SERVER['REQUEST_URI'])
+            ? home_url($_SERVER['REQUEST_URI'])
+            : '';
+
+        $this->log_event('auto_switch', 'GBP', $currency_to, $page_url);
+    }
+
+    /**
      * Core log method — inserts one row into the events table.
      */
     private function log_event($event_type, $currency_from, $currency_to, $page_url = '') {
@@ -289,24 +304,30 @@ class VCC_Analytics {
             "SELECT COUNT(*) FROM {$this->table_name} WHERE event_type = 'switch'"
         );
 
+        $total_auto_switches = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$this->table_name} WHERE event_type = 'auto_switch'"
+        );
+
         $total_checkouts = (int) $wpdb->get_var(
             "SELECT COUNT(*) FROM {$this->table_name} WHERE event_type = 'checkout'"
         );
 
+        // Top currencies: include both manual and auto switches
         $by_currency = $wpdb->get_results(
             "SELECT currency_to, COUNT(*) AS cnt
              FROM {$this->table_name}
-             WHERE event_type = 'switch'
+             WHERE event_type IN ('switch', 'auto_switch')
              GROUP BY currency_to
              ORDER BY cnt DESC
              LIMIT 10",
             ARRAY_A
         );
 
+        // Top countries: include both manual and auto switches
         $by_country = $wpdb->get_results(
             "SELECT country, COUNT(*) AS cnt
              FROM {$this->table_name}
-             WHERE event_type = 'switch' AND country != ''
+             WHERE event_type IN ('switch', 'auto_switch') AND country != ''
              GROUP BY country
              ORDER BY cnt DESC
              LIMIT 10",
@@ -317,12 +338,13 @@ class VCC_Analytics {
         $newest = $wpdb->get_var("SELECT MAX(created_at) FROM {$this->table_name}");
 
         return array(
-            'total_switches'  => $total_switches,
-            'total_checkouts' => $total_checkouts,
-            'by_currency'     => $by_currency ?: array(),
-            'by_country'      => $by_country  ?: array(),
-            'oldest'          => $oldest,
-            'newest'          => $newest,
+            'total_switches'      => $total_switches,
+            'total_auto_switches' => $total_auto_switches,
+            'total_checkouts'     => $total_checkouts,
+            'by_currency'         => $by_currency ?: array(),
+            'by_country'          => $by_country  ?: array(),
+            'oldest'              => $oldest,
+            'newest'              => $newest,
         );
     }
 

@@ -102,6 +102,12 @@ class VCC_Frontend_Display {
             // Auto-detected currency
             $this->selected_currency = $auto_detected_currency;
             $_SESSION['vcc_selected_currency'] = $auto_detected_currency;
+
+            // Log the auto-detection (only fires once per session since session check above prevents re-runs)
+            if (class_exists('VCC_Analytics')) {
+                VCC_Analytics::get_instance()->log_auto_switch_event($auto_detected_currency);
+            }
+
             // Don't set manual_override flag - this is automatic
             return;
         }
