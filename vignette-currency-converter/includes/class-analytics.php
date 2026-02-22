@@ -130,6 +130,56 @@ class VCC_Analytics {
     }
 
     /**
+     * Check if the current request is from a bot, crawler, or internal WordPress process.
+     */
+    private function is_bot_or_internal_request() {
+        // WordPress internal processes
+        if (defined('DOING_CRON') && DOING_CRON) {
+            return true;
+        }
+        if (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST) {
+            return true;
+        }
+        if (defined('WP_CLI') && WP_CLI) {
+            return true;
+        }
+        if (defined('REST_REQUEST') && REST_REQUEST) {
+            return true;
+        }
+
+        // Check request URI for internal WordPress endpoints
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+        $internal_paths = array('/xmlrpc.php', '/wp-cron.php', '/wp-login.php', '/wp-admin/');
+        foreach ($internal_paths as $path) {
+            if (strpos($request_uri, $path) !== false) {
+                return true;
+            }
+        }
+
+        // Bot/crawler User-Agent detection
+        $ua = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+        if ($ua === '') {
+            return true; // No User-Agent is almost certainly a bot
+        }
+        $bot_patterns = array(
+            'bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'wget', 'curl',
+            'python', 'java/', 'apache-http', 'http_request', 'node-fetch',
+            'go-http-client', 'ahrefs', 'semrush', 'mj12bot', 'dotbot',
+            'bingpreview', 'yandex', 'baidu', 'facebookexternalhit', 'bytespider',
+            'gptbot', 'chatgpt', 'claudebot', 'anthropic', 'scrapy', 'headlesschrome',
+            'lighthouse', 'pagespeed', 'pingdom', 'uptimerobot', 'monitoring',
+        );
+        $ua_lower = strtolower($ua);
+        foreach ($bot_patterns as $pattern) {
+            if (strpos($ua_lower, $pattern) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Core log method — inserts one row into the events table.
      */
     private function log_event($event_type, $currency_from, $currency_to, $page_url = '') {
@@ -138,6 +188,11 @@ class VCC_Analytics {
         // Skip if analytics logging is disabled
         $settings = get_option('vcc_settings', array());
         if (isset($settings['analytics_enabled']) && $settings['analytics_enabled'] === 'no') {
+            return;
+        }
+
+        // Skip bots, crawlers, and internal WordPress requests
+        if ($this->is_bot_or_internal_request()) {
             return;
         }
 
