@@ -887,7 +887,7 @@ class VCC_Admin_Settings {
             <div style="display:flex;gap:8px;align-items:center;">
                 <strong><?php _e('Recent Events', 'vignette-currency-converter'); ?></strong>
                 <?php
-                $base_url   = admin_url('admin.php?page=vcc-settings');
+                $base_url   = admin_url('admin.php?page=vcc-settings&tab=analytics');
                 $filter_url = add_query_arg(array('vcc_analytics_page' => 1), $base_url);
                 ?>
                 <a href="<?php echo esc_url(add_query_arg('vcc_analytics_type', '', $filter_url)); ?>"
