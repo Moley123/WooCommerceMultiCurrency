@@ -82,6 +82,11 @@ class VCC_Stripe_Integration {
             return;
         }
 
+        // Idempotency — bail if this order has already been converted
+        if ($order->get_meta('_vcc_charged_currency')) {
+            return;
+        }
+
         // Only proceed if the Stripe gateway is active
         if (!$this->is_stripe_active()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -107,7 +112,39 @@ class VCC_Stripe_Integration {
             return; // Fall back to GBP silently
         }
 
-        $converted_total = round($gbp_total * floatval($rate), 2);
+        $rate = floatval($rate);
+
+        // Convert each line item, fee and shipping row at the locked rate so that
+        // displays in the admin order screen and emails show converted amounts
+        // (not GBP figures with a swapped currency symbol).
+        foreach ($order->get_items('line_item') as $item) {
+            $item->set_subtotal(round(floatval($item->get_subtotal()) * $rate, 2));
+            $item->set_total(round(floatval($item->get_total()) * $rate, 2));
+            $this->scale_item_taxes($item, $rate);
+            $item->save();
+        }
+
+        foreach ($order->get_items('fee') as $fee) {
+            $fee->set_total(round(floatval($fee->get_total()) * $rate, 2));
+            $this->scale_item_taxes($fee, $rate);
+            $fee->save();
+        }
+
+        foreach ($order->get_items('shipping') as $shipping) {
+            $shipping->set_total(round(floatval($shipping->get_total()) * $rate, 2));
+            $this->scale_item_taxes($shipping, $rate);
+            $shipping->save();
+        }
+
+        // Recompute the order total from the converted lines so subtotal + fees == total.
+        $converted_total = 0.0;
+        foreach ($order->get_items(array('line_item', 'fee', 'shipping')) as $line) {
+            $converted_total += floatval($line->get_total());
+            if (is_callable(array($line, 'get_total_tax'))) {
+                $converted_total += floatval($line->get_total_tax());
+            }
+        }
+        $converted_total = round($converted_total, 2);
 
         // Store original GBP values in order meta for accounting / refund reference
         $order->update_meta_data('_vcc_original_gbp_total',  $gbp_total);
@@ -133,6 +170,31 @@ class VCC_Stripe_Integration {
                 current_time('mysql')
             ));
         }
+    }
+
+    /**
+     * Multiply each entry in an order item's subtotal/total tax arrays by $rate.
+     * No-op when the item carries no taxes (the common case for this store).
+     */
+    private function scale_item_taxes($item, $rate) {
+        if (!is_callable(array($item, 'get_taxes')) || !is_callable(array($item, 'set_taxes'))) {
+            return;
+        }
+
+        $taxes = $item->get_taxes();
+        if (empty($taxes) || !is_array($taxes)) {
+            return;
+        }
+
+        foreach (array('subtotal', 'total') as $key) {
+            if (!empty($taxes[$key]) && is_array($taxes[$key])) {
+                foreach ($taxes[$key] as $rate_id => $amount) {
+                    $taxes[$key][$rate_id] = round(floatval($amount) * $rate, 2);
+                }
+            }
+        }
+
+        $item->set_taxes($taxes);
     }
 
     /**
